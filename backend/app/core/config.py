@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
 
     app_name: str = "OpenCall API"
     debug: bool = False
+    gnani_api_key: SecretStr | None = None
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

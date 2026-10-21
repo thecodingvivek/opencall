@@ -47,5 +47,27 @@ Add endpoint modules in `app/api/routes/` and include their routers in
 origin changes. The defaults allow the local Next.js frontend on port 3000.
 
 For production, configure the actual frontend origins and run without `--reload`.
-The health endpoint checks only that the app responds; no database, authentication,
-or external services are configured in this starter.
+The health endpoint checks only that the app responds; no database or authentication
+is configured in this starter.
+
+## Gnani initialization
+
+Set `GNANI_API_KEY` in `backend/.env` and install `requirements.txt`.
+`app/services/gnani.py` provides lazy, cached REST clients:
+
+```python
+from app.services.gnani import get_gnani_stt_client, get_gnani_tts_client
+
+stt = get_gnani_stt_client()
+tts = get_gnani_tts_client()
+```
+
+The key is loaded through application settings and passed explicitly to the SDK.
+It is stored as a masked `SecretStr`. Clients are created on first use, so the
+app can start without a key; requesting a client without one raises a clear error.
+Restart the server after changing the key.
+
+Initialization does not transcribe or synthesize anything. When adding TTS calls,
+pass `model="timbre-v2.5"` explicitly, as described in `knowledge.md`.
+These REST clients are synchronous; use regular `def` FastAPI endpoints or offload
+SDK calls to a thread pool from `async def` endpoints.
