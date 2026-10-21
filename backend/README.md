@@ -23,6 +23,8 @@ values in `backend/.env`; the app also works with the defaults without this file
 - `GET /` — app name and documentation URL.
 - `GET /api/v1/health` — returns `{"status":"ok"}` for process health.
 - `POST /api/v1/speech/transcribe` — transcribes a WAV recording through Gnani.
+- `POST /api/v1/speech/synthesize` — reads transcript text with Gnani TTS and returns WAV audio.
+- `GET /api/v1/speech/voices?language_code=en-IN` — available playback voices and the default for a language.
 - `/docs` — interactive Swagger documentation.
 - `/redoc` — ReDoc documentation.
 - `/openapi.json` — OpenAPI schema.
@@ -112,3 +114,32 @@ python -m unittest discover -s tests -v
 
 These tests mock Gnani; live transcription requires the installed SDK, a working
 key, and network access to the service.
+
+## Transcript playback
+
+The transcript panel's **Listen** button posts JSON to `/api/v1/speech/synthesize`:
+
+```bash
+curl http://127.0.0.1:8000/api/v1/speech/synthesize \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Hello. Welcome to OpenCall.","language_code":"en-IN","voice":"Pranav"}' \
+  --output speech.wav
+```
+
+The endpoint accepts 1–5,000 characters after trimming whitespace, uses
+`timbre-v2.5`, and accepts an optional `voice` from the language's catalog. Omitting
+`voice` uses that language's default. Unknown voices or voices belonging to a
+different language return `422` before Gnani is called. The voice catalog comes
+from the [Gnani TTS documentation](https://docs.gnani.ai/python-sdk/text-to-speech).
+It
+returns `audio/wav` with `Cache-Control: no-store` and an `X-API-Request-ID` header.
+The API key remains on the backend. Empty text and unsupported languages return
+`422`, missing configuration returns `503`, and provider failures return `502`.
+
+The browser reuses generated audio for replay until a new transcript replaces it.
+Choose a voice from the **Voice** selector beside **Listen**. Changing the voice
+stops any playback, discards the old audio, and uses the new voice on the next
+click. The selector only offers voices matched to the transcript's language.
+**Stop** stops playback; **Play** replays it. If browser autoplay is blocked after
+generation, click **Play** to start audio. Beginning a new recording or navigating
+away stops playback, cancels pending requests, and releases the audio URL.

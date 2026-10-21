@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { recordingToWav } from "@/lib/audio";
+import { TranscriptSpeaker } from "./transcript-speaker";
 
 const languages = [
   ["en-IN", "English (India)"], ["hi-IN", "Hindi"], ["te-IN", "Telugu"],
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [status, setStatus] = useState<Status>("idle");
   const [language, setLanguage] = useState("en-IN");
   const [transcript, setTranscript] = useState<string | null>(null);
+  const [transcriptLanguage, setTranscriptLanguage] = useState("en-IN");
   const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -67,7 +69,10 @@ export default function Dashboard() {
       const result = await response.json();
       if (!response.ok) throw new Error(typeof result.detail === "string" ? result.detail : "This recording could not be processed. Please try again.");
       if (typeof result.transcript !== "string") throw new Error("The speech service returned an invalid response.");
-      if (mounted.current) setTranscript(result.transcript);
+      if (mounted.current) {
+        setTranscript(result.transcript);
+        setTranscriptLanguage(selectedLanguage);
+      }
     } catch (cause) {
       if (mounted.current) setError(cause instanceof Error && cause.name === "AbortError"
         ? "Transcription timed out. Please try a shorter recording."
@@ -205,9 +210,12 @@ export default function Dashboard() {
               <p className="mt-[13px] text-center text-[10px] text-[#919987]">Click to start. Click again when you’re done.</p>
             </section>
             <section className="flex flex-col overflow-hidden rounded-[14px] border border-[#dfe5d9] bg-white shadow-[0_3px_4px_#243a2510]" aria-labelledby="transcript-heading">
-              <div className="flex items-center justify-between gap-2.5 border-b border-[#edf0e7] p-[25px] max-[1100px]:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0e7] p-[25px] max-[1100px]:p-5">
                 <div><span className="text-[9px] tracking-[1.6px] text-[#829078]">02 / TRANSCRIPT</span><h2 id="transcript-heading" className="mt-[9px] text-[15px] font-medium tracking-[-0.3px]">Your words, captured</h2></div>
-                <button className="cursor-pointer rounded-[5px] border border-[#e1e7da] bg-transparent px-[9px] py-[7px] text-[10px] whitespace-nowrap text-[#54694a] disabled:cursor-default disabled:opacity-40" disabled={!transcript || status !== "idle"} onClick={copyTranscript}>{copied ? "Copied ✓" : "Copy text ↗"}</button>
+                <div className="flex flex-wrap items-end gap-2">
+                  <TranscriptSpeaker key={`${transcriptLanguage}:${transcript}`} text={transcript || ""} languageCode={transcriptLanguage} disabled={status !== "idle"} />
+                  <button className="cursor-pointer rounded-[5px] border border-[#e1e7da] bg-transparent px-[9px] py-[7px] text-[10px] whitespace-nowrap text-[#54694a] disabled:cursor-default disabled:opacity-40" disabled={!transcript || status !== "idle"} onClick={copyTranscript}>{copied ? "Copied ✓" : "Copy text ↗"}</button>
+                </div>
               </div>
               <div className="flex max-h-[520px] min-h-[320px] flex-1 overflow-auto p-7 max-[600px]:min-h-[290px]" aria-live="polite" aria-busy={status === "processing"}>
                 {transcript ? <p className="text-[17px] leading-[1.9] whitespace-pre-wrap text-[#334430] [overflow-wrap:anywhere]">{transcript}</p> : (
