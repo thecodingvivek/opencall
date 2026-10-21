@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenCall frontend
 
-## Getting Started
+The speech studio lives at `/dashboard`; `/` redirects there.
 
-First, run the development server:
+Start the FastAPI backend on port 8000 first (see `../backend/README.md`).
+Then run from this directory:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000/dashboard. Select the language you will speak, click
+**Click to speak**, allow microphone access, and speak. Click **Stop & transcribe**
+to send the recording and show the recognized text. Use **Copy text** to copy it.
+Recordings stop automatically at 55 seconds. This is speech-to-text in the chosen
+language, not translation into another language.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app records with MediaRecorder, converts the audio to mono 16 kHz PCM WAV
+using Web Audio, and sends it to `POST /api/v1/speech/transcribe` on FastAPI.
+The `GNANI_API_KEY` belongs only in `backend/.env`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The default backend address is `http://127.0.0.1:8000`. To override it, put
+`NEXT_PUBLIC_API_URL=http://your-backend-address` in `.env.local`, then restart
+Next.js. Configure the matching frontend origin in the backend's `CORS_ORIGINS`.
+Microphone access requires localhost or HTTPS in a supported browser. For a remote
+HTTPS frontend, use an HTTPS backend URL as well.
 
-## Learn More
+The page handles microphone denial, recording failures, processing, empty speech,
+request timeouts, and backend errors. It releases the microphone after recording
+and on navigation. Audio is sent to Gnani through the backend; transcripts are
+kept in page memory and are not saved across reloads.
 
-To learn more about Next.js, take a look at the following resources:
+Checks:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+bun run lint
+bunx tsc --noEmit
+bun run build
+```
