@@ -56,7 +56,8 @@ is configured in this starter.
 ## Gnani initialization
 
 Set `GNANI_API_KEY` in `backend/.env` and install `requirements.txt`.
-`app/services/gnani.py` provides lazy, cached REST clients:
+`app/services/gnani.py` provides lazy, cached clients: STT uses the Gnani SDK;
+TTS uses the official REST endpoint with Timbre v3.0:
 
 ```python
 from app.services.gnani import get_gnani_stt_client, get_gnani_tts_client
@@ -65,14 +66,16 @@ stt = get_gnani_stt_client()
 tts = get_gnani_tts_client()
 ```
 
-The key is loaded through application settings and passed explicitly to the SDK.
+The key is loaded through application settings and passed explicitly to each client.
 It is stored as a masked `SecretStr`. Clients are created on first use, so the
 app can start without a key; requesting a client without one raises a clear error.
 Restart the server after changing the key.
 
-Initialization does not transcribe or synthesize anything. When adding TTS calls,
-pass `model="timbre-v2.5"` explicitly, as described in `knowledge.md`.
-These REST clients are synchronous; use regular `def` FastAPI endpoints or offload
+Initialization does not transcribe or synthesize anything. TTS explicitly sends
+`model="timbre-v3.0"` through the REST API because the installed SDK 0.8.1 rejects
+v3 voices and language parameters locally. The originally supplied SDK examples
+describe v2.5; the application now uses the current v3 REST contract.
+These clients are synchronous; use regular `def` FastAPI endpoints or offload
 SDK calls to a thread pool from `async def` endpoints.
 
 ## Dashboard speech to text
@@ -122,24 +125,34 @@ The transcript panel's **Listen** button posts JSON to `/api/v1/speech/synthesiz
 ```bash
 curl http://127.0.0.1:8000/api/v1/speech/synthesize \
   -H 'Content-Type: application/json' \
-  -d '{"text":"Hello. Welcome to OpenCall.","language_code":"en-IN","voice":"Pranav"}' \
+  -d '{"text":"Hello. Welcome to OpenCall.","language_code":"en-IN","voice":"Shivani","delivery":"excited"}' \
   --output speech.wav
 ```
 
-The endpoint accepts 1–5,000 characters after trimming whitespace, uses
-`timbre-v2.5`, and accepts an optional `voice` from the language's catalog. Omitting
-`voice` uses that language's default. Unknown voices or voices belonging to a
-different language return `422` before Gnani is called. The voice catalog comes
-from the [Gnani TTS documentation](https://docs.gnani.ai/python-sdk/text-to-speech).
-It
-returns `audio/wav` with `Cache-Control: no-store` and an `X-API-Request-ID` header.
-The API key remains on the backend. Empty text and unsupported languages return
-`422`, missing configuration returns `503`, and provider failures return `502`.
+The endpoint accepts 1–5,000 characters after trimming whitespace and uses
+`timbre-v3.0` with WAV output. `voice` is optional and defaults to `Shivani`.
+All 13 v3 voices speak every supported language: Shivani, Avinash, Lakshmi,
+Kalpana, Chetana, Vasudha, Riyaa, Tarika, Shubham, Prakash, Devansh, Yashraj,
+and Harshad. Unknown voices and voices from earlier models return `422` before
+Gnani is called. The catalog follows the
+[Gnani voice documentation](https://docs.gnani.ai/api/TTS/available-voices).
 
-The browser reuses generated audio for replay until a new transcript replaces it.
-Choose a voice from the **Voice** selector beside **Listen**. Changing the voice
-stops any playback, discards the old audio, and uses the new voice on the next
-click. The selector only offers voices matched to the transcript's language.
-**Stop** stops playback; **Play** replays it. If browser autoplay is blocked after
-generation, click **Play** to start audio. Beginning a new recording or navigating
-away stops playback, cancels pending requests, and releases the audio URL.
+The optional `delivery` defaults to `neutral`. Supported values are `excited`,
+`whispers`, `shouting`, `laugh`, `giggle`, `sigh`, `exhales`, `sniffles`, `yawns`,
+`coughs`, `clears throat`, `slow`, and `pauses`. The backend prepends the matching
+inline tag for synthesis without changing the transcript displayed in the UI.
+For example, `excited` sends `<excited> Hello world` to Gnani. These are documented
+v3 delivery cues; arbitrary emotions such as `sad` are not accepted.
+See [Gnani audio tags](https://docs.gnani.ai/api/TTS/tts-audio-tags).
+
+The response is `audio/wav` with `Cache-Control: no-store` and an
+`X-API-Request-ID` header. The key remains on the backend. Invalid text, voice,
+language, or delivery returns `422`; missing configuration returns `503`;
+provider failures return `502`.
+
+Choose **Voice** and **Delivery** beside **Listen**. Changing either stops
+playback and discards the previous audio. Clicking **Listen** generates audio
+with the new settings. **Stop** stops playback; **Play** reuses that audio.
+If the browser blocks automatic playback after generation, click **Play**.
+Beginning a new recording or navigating away stops playback and releases audio
+resources. The frontend continues to use Tailwind for these controls.

@@ -106,34 +106,28 @@ class SynthesisTests(unittest.TestCase):
         self.assertEqual(response.headers['cache-control'], 'no-store')
         args, kwargs = self.sdk.synthesize.call_args
         self.assertEqual(args, ('Hello world',))
-        self.assertEqual(kwargs['model'], 'timbre-v2.5')
         self.assertEqual(kwargs['language'], 'en-IN')
-        self.assertEqual(kwargs['voice'], 'Kaveri')
+        self.assertEqual(kwargs['voice'], 'Shivani')
         self.assertEqual(kwargs['request_id'], response.headers['x-api-request-id'])
-        self.assertEqual(kwargs['audio_config'].container, 'wav')
-        self.assertEqual(kwargs['audio_config'].sample_rate, 48000)
         self.assertNotIn('output_file', kwargs)
 
-    def test_language_specific_voices(self):
-        for language, voice in {
-            'hi-IN': 'Nalini', 'te-IN': 'Suhana', 'ta-IN': 'Asmita',
-            'kn-IN': 'Saanvi', 'ml-IN': 'Reshma', 'mr-IN': 'Zahira',
-            'gu-IN': 'Falak', 'bn-IN': 'Kirra', 'pa-IN': 'Mehuli',
-        }.items():
+    def test_multilingual_default_voice(self):
+        for language in ('en-IN', 'hi-IN', 'te-IN', 'ta-IN', 'kn-IN', 'ml-IN',
+                         'mr-IN', 'gu-IN', 'bn-IN', 'pa-IN'):
             with self.subTest(language=language):
                 self.assertEqual(self.synthesize(language=language).status_code, 200)
-                self.assertEqual(self.sdk.synthesize.call_args.kwargs['voice'], voice)
+                self.assertEqual(self.sdk.synthesize.call_args.kwargs['voice'], 'Shivani')
                 self.assertEqual(self.sdk.synthesize.call_args.kwargs['language'], language)
 
     def test_selected_voice_reaches_provider(self):
         response = self.client.post('/api/v1/speech/synthesize', json={
-            'text': 'Hello world', 'language_code': 'en-IN', 'voice': 'Pranav',
+            'text': 'Hello world', 'language_code': 'en-IN', 'voice': 'Avinash',
         })
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.sdk.synthesize.call_args.kwargs['voice'], 'Pranav')
+        self.assertEqual(self.sdk.synthesize.call_args.kwargs['voice'], 'Avinash')
 
-    def test_invalid_or_mismatched_voice_does_not_call_provider(self):
-        for voice in ('Unknown', 'Nalini', '', '   '):
+    def test_unknown_or_legacy_voice_does_not_call_provider(self):
+        for voice in ('Unknown', 'Nalini', 'Kaveri', 'Pranav', '', '   '):
             response = self.client.post('/api/v1/speech/synthesize', json={
                 'text': 'Hello world', 'language_code': 'en-IN', 'voice': voice,
             })
@@ -143,19 +137,32 @@ class SynthesisTests(unittest.TestCase):
     def test_voice_catalog_contract(self):
         response = self.client.get('/api/v1/speech/voices?language_code=te-IN')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {
-            'language_code': 'te-IN', 'default_voice': 'Suhana',
-            'voices': ['Suhana', 'Lehara', 'Lavanya', 'Yukti', 'Varuni'],
-        })
+        catalog = response.json()
+        self.assertEqual(catalog['language_code'], 'te-IN')
+        self.assertEqual(catalog['default_voice'], 'Shivani')
+        self.assertEqual(len(catalog['voices']), 13)
+        self.assertIn('Lakshmi', catalog['voices'])
+        english = self.client.get('/api/v1/speech/voices?language_code=en-IN').json()
+        self.assertEqual(catalog['voices'], english['voices'])
         self.assertEqual(self.client.get('/api/v1/speech/voices?language_code=invalid').status_code, 422)
         self.factory.assert_not_called()
 
-    def test_catalog_voices_are_accepted_by_installed_sdk(self):
-        from gnani.tts import GnaniTTSClient
-        from app.api.routes.speech import TTS_VOICES
-        supported = set(GnaniTTSClient.supported_voices('timbre-v2.5'))
-        for voices in TTS_VOICES.values():
-            self.assertTrue(set(voices) <= supported)
+    def test_supported_delivery_tags(self):
+        for tag in ('excited', 'whispers', 'shouting', 'laugh', 'giggle', 'sigh',
+                    'exhales', 'sniffles', 'yawns', 'coughs', 'clears throat', 'slow', 'pauses'):
+            with self.subTest(tag=tag):
+                response = self.client.post('/api/v1/speech/synthesize', json={
+                    'text': 'Hello world', 'language_code': 'en-IN', 'delivery': tag,
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.sdk.synthesize.call_args.args[0], f'<{tag}> Hello world')
+
+    def test_unsupported_delivery_is_rejected(self):
+        response = self.client.post('/api/v1/speech/synthesize', json={
+            'text': 'Hello world', 'delivery': 'sad',
+        })
+        self.assertEqual(response.status_code, 422)
+        self.factory.assert_not_called()
 
     def test_invalid_text_and_language_do_not_call_provider(self):
         for payload in ({'text': ''}, {'text': '   '}, {'text': 'x' * 5001},
@@ -183,6 +190,46 @@ class SynthesisTests(unittest.TestCase):
             with self.subTest(audio=audio):
                 self.sdk.synthesize.return_value = audio
                 response = self.synthesize()
+                self.assertEqual(response.status_code, 502)
+                self.assertNotIn('private', response.text)
+
+
+class TTSV3TransportTests(unittest.TestCase):
+    def test_route_sends_v3_model_and_tag_to_real_transport(self):
+        from app.services.gnani import GnaniTTSV3Client
+        client = GnaniTTSV3Client(api_key='test-key')
+        with patch('app.api.routes.speech.get_gnani_tts_client', return_value=client), \
+             patch('app.services.gnani.requests.post') as post:
+            post.return_value.content = wav_bytes()
+            response = TestClient(app).post('/api/v1/speech/synthesize', json={
+                'text': 'Hello world', 'voice': 'Lakshmi',
+                'language_code': 'te-IN', 'delivery': 'excited',
+            })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, wav_bytes())
+        args, kwargs = post.call_args
+        self.assertEqual(args[0], 'https://api.vachana.ai/api/v1/tts/inference')
+        body = kwargs['json']
+        self.assertEqual(body['model'], 'timbre-v3.0')
+        self.assertEqual(body['text'], '<excited> Hello world')
+        self.assertEqual(body['voice'], 'Lakshmi')
+        self.assertEqual(body['language'], 'te-IN')
+        self.assertEqual(body['audio_config']['container'], 'wav')
+        self.assertEqual(body['audio_config']['sample_rate'], 48000)
+        self.assertEqual(kwargs['headers']['X-API-Key-ID'], 'test-key')
+        self.assertEqual(kwargs['headers']['X-API-Request-ID'], response.headers['x-api-request-id'])
+        self.assertEqual(kwargs['timeout'], (10, 60))
+        post.return_value.raise_for_status.assert_called_once()
+
+    def test_http_and_network_errors_return_safe_response(self):
+        import requests
+        from app.services.gnani import GnaniTTSV3Client
+        client = GnaniTTSV3Client(api_key='test-key')
+        with patch('app.api.routes.speech.get_gnani_tts_client', return_value=client), \
+             patch('app.services.gnani.requests.post') as post:
+            for error in (requests.HTTPError('private details'), requests.Timeout('private details')):
+                post.side_effect = error
+                response = TestClient(app).post('/api/v1/speech/synthesize', json={'text': 'Hello'})
                 self.assertEqual(response.status_code, 502)
                 self.assertNotIn('private', response.text)
 

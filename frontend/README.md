@@ -15,9 +15,12 @@ Open http://localhost:3000/dashboard. Select the language you will speak, click
 to send the recording and show the recognized text. Use **Copy text** to copy it.
 Click the speaker **Listen** button beside **Copy text** to hear the transcript
 using Gnani TTS. While audio is playing, click **Stop**; click **Play** to replay it.
-Use the **Voice** dropdown to select a voice for the transcript's language. Voice
+Use the **Voice** dropdown to choose from 13 Timbre v3.0 multilingual voices. Voice
 options load from the backend's `/api/v1/speech/voices` endpoint. Changing the
 voice stops any current audio and regenerates it on the next **Listen** click.
+Use **Delivery** for Neutral, Excited, Whispering, Shouting, and the other
+supported delivery cues. Changing delivery also resets the audio. This changes
+how the transcript is spoken; it does not rewrite the visible transcript.
 If your browser blocks automatic playback, click **Play** once audio is ready.
 Playback uses the transcript's recorded language even if you change the selector
 afterward, and stops when a new recording begins or you leave the page.

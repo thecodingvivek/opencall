@@ -5,10 +5,18 @@ import { useEffect, useRef, useState } from "react";
 type Props = { text: string; languageCode: string; disabled: boolean };
 type Playback = "idle" | "loading" | "ready" | "playing";
 type VoiceOptions = { voices: string[]; default_voice: string };
+const deliveries = [
+  ["neutral", "Neutral"], ["excited", "Excited"], ["whispers", "Whispering"],
+  ["shouting", "Shouting"], ["laugh", "Laughing"], ["giggle", "Giggling"],
+  ["sigh", "Sighing"], ["exhales", "Exhaling"], ["sniffles", "Sniffling"],
+  ["yawns", "Yawning"], ["coughs", "Coughing"], ["clears throat", "Clearing throat"],
+  ["slow", "Slow"], ["pauses", "Opening pause"],
+];
 
 export function TranscriptSpeaker({ text, languageCode, disabled }: Props) {
   const [options, setOptions] = useState<VoiceOptions | null>(null);
   const [voice, setVoice] = useState("");
+  const [delivery, setDelivery] = useState("neutral");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
@@ -23,7 +31,7 @@ export function TranscriptSpeaker({ text, languageCode, disabled }: Props) {
     async function loadVoices() {
       try {
         const api = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-        const response = await fetch(`${api}/api/v1/speech/voices?language_code=${encodeURIComponent(languageCode)}`);
+        const response = await fetch(`${api}/api/v1/speech/voices?language_code=${encodeURIComponent(languageCode)}`, { cache: "no-store" });
         if (!response.ok) throw new Error("Could not load voices. Check that the backend is running.");
         const result = await response.json();
         if (!Array.isArray(result.voices) || !result.voices.length ||
@@ -61,14 +69,26 @@ export function TranscriptSpeaker({ text, languageCode, disabled }: Props) {
             {options ? options.voices.map((name) => <option key={name} value={name}>{name}</option>) : <option value="">{error ? "Unavailable" : "Loading voices…"}</option>}
           </select>
         </label>
-        <TranscriptPlayback key={voice} text={text} languageCode={languageCode} voice={voice} disabled={disabled || !options} />
+        <label className="flex flex-col gap-1 text-[10px] text-[#69765e]">
+          Delivery
+          <select
+            aria-label="Speaking delivery"
+            className="max-w-[135px] rounded-[5px] border border-[#d4e2bc] bg-[#fafbf5] px-2 py-[7px] text-[10px] text-[#405b2d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#739b44] disabled:opacity-40"
+            value={delivery}
+            disabled={disabled || !text.trim() || !options}
+            onChange={(event) => setDelivery(event.target.value)}
+          >
+            {deliveries.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <TranscriptPlayback key={`${voice}:${delivery}`} text={text} languageCode={languageCode} voice={voice} delivery={delivery} disabled={disabled || !options} />
       </div>
       {error && <p role="status" className="max-w-[230px] text-right text-[11px] leading-relaxed text-[#91492d]">{error} <button type="button" className="cursor-pointer underline" onClick={() => { setError(""); setOptions(null); setVoice(""); setAttempt((value) => value + 1); }}>Retry</button></p>}
     </div>
   );
 }
 
-function TranscriptPlayback({ text, languageCode, disabled, voice }: Props & { voice: string }) {
+function TranscriptPlayback({ text, languageCode, disabled, voice, delivery }: Props & { voice: string; delivery: string }) {
   const [state, setState] = useState<Playback>("idle");
   const [message, setMessage] = useState("");
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -131,7 +151,7 @@ function TranscriptPlayback({ text, languageCode, disabled, voice }: Props & { v
       const response = await fetch(`${api}/api/v1/speech/synthesize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, language_code: languageCode, voice }),
+        body: JSON.stringify({ text, language_code: languageCode, voice, delivery }),
         signal: controller.signal,
       });
       if (!response.ok) {
