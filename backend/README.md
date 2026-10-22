@@ -1,6 +1,6 @@
 # OpenCall backend
 
-FastAPI HTTP backend with LiveKit Agents speech providers. Requires Python 3.11 or newer.
+FastAPI HTTP backend with LiveKit Agents speech providers. Use Python 3.11–3.13 (tested with 3.13); Silero does not currently install on this machine’s Python 3.14.
 
 ## Local setup
 
@@ -8,8 +8,8 @@ Run from the repository root:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
+python3.13 -m venv .venv-voice
+source .venv-voice/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -80,18 +80,16 @@ Output is mono 16-bit WAV at **44.1 kHz**, the highest rate accepted by this
 plugin release (previously 48 kHz). Input remains mono 16-bit WAV at 16 kHz.
 Requests use a 60-second provider timeout and no automatic retries.
 
-This migration uses LiveKit's speech framework inside the existing HTTP app.
-It does not create a LiveKit room, WebRTC connection, agent worker, or LLM
-conversation. No LiveKit Cloud URL/key/secret is needed for these endpoints.
-A room-based realtime conversation would additionally require a worker,
-room tokens/dispatch, and a frontend LiveKit connection.
+The recording endpoints use LiveKit speech classes inside FastAPI. The default
+`/dashboard` now connects to the continuous conversation worker described below;
+the recording studio remains at `/dashboard/transcribe`.
 
 References: [Gnani LiveKit plugin](https://docs.gnani.ai/livekit/introduction),
 [Gnani TTS REST contract](https://docs.gnani.ai/api/TTS/tts-inference).
 
 ## Dashboard speech to text
 
-The frontend `/dashboard` records speech and sends a multipart request to
+The frontend `/dashboard/transcribe` records speech and sends a multipart request to
 `POST /api/v1/speech/transcribe`. This produces text in the spoken language;
 it does not translate between languages. The backend keeps the API key private.
 
@@ -178,3 +176,121 @@ STT events, TTS decoding, WAV output, concurrent request isolation, cancellation
 and HTTP session cleanup, with provider HTTP responses mocked. OpenCall's runtime
 dependency chain was checked independently of unrelated packages in the existing
 virtual environment. Live Gnani requests and browser audio remain unverified.
+
+
+## Continuous voice conversations
+
+The dashboard now supports a room-based, continuous conversation:
+
+```text
+Browser microphone → LiveKit room → Gnani streaming STT
+                                     ↓
+                                Groq streaming LLM
+                                     ↓
+Browser speakers   ← LiveKit room ← Timbre v3 WebSocket TTS
+```
+
+Start once and speak naturally. Silero detects speech and pauses; LiveKit commits
+turns automatically, manages conversation context, and interrupts outgoing audio
+when you speak over the assistant. The initial settings use 350 ms of speech for
+an interruption and a 500 ms minimum endpointing delay. False interruptions can
+resume playback. This is VAD-based turn detection; background noise and short
+pauses can require tuning. Echo cancellation and noise suppression are enabled in
+the browser. Headphones help avoid the assistant hearing its own output.
+
+The LLM streams text; LiveKit's sentence adapter sends sentences to the Gnani
+WebSocket endpoint as they become available. Gnani streams raw mono PCM audio
+at 24 kHz, emitted to the room in 20 ms frames. The full reply is never collected
+into a WAV before playback. Timbre v3 voice and language are passed explicitly.
+Cancellation closes the active TTS socket and LiveKit stops the queued playback.
+The agent's conversation history is managed by LiveKit, including interrupted turns.
+
+### Run locally
+
+Install [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) on macOS:
+
+```bash
+brew install livekit
+livekit-server --dev --bind 127.0.0.1
+```
+
+In a second terminal, install backend requirements in the Python 3.13 environment
+above. Keep the existing `GNANI_API_KEY` and `GROQ_API_KEY` in `backend/.env`.
+The local server defaults match `.env.example`: `ws://127.0.0.1:7880`, key
+`devkey`, secret `secret`. Then run FastAPI:
+
+```bash
+cd backend
+source .venv-voice/bin/activate
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+In a third terminal, run the agent worker:
+
+```bash
+cd backend
+source .venv-voice/bin/activate
+python -m app.voice_agent dev
+```
+
+In a fourth terminal, start the frontend:
+
+```bash
+cd frontend
+bun install
+bun run dev
+```
+
+Open `http://localhost:3000/dashboard`, choose a language and voice, and click
+**Start conversation**. Allow the microphone. The agent greets you and then
+listens continuously. Use **Mute microphone**, **End conversation**, or
+**Enable audio** if browser autoplay is blocked. Settings are locked during a
+session. Transcripts are shown in this tab and cleared when the session ends.
+A connection failure, permission denial, missing worker, or lost connection is
+shown in the UI. Leaving the page disconnects and releases the microphone.
+Sessions end after `CONVERSATION_MAX_SECONDS` (default 30 minutes).
+
+### Configuration and connection contract
+
+`POST /api/v1/conversation/connect` accepts
+`{"language_code":"en-IN","voice":"Shivani"}`. It returns `server_url`,
+`participant_token`, `room_name`, and `participant_identity` with `no-store`.
+Each call creates a unique room identity and signs a 10-minute join token,
+restricted to that room and microphone publication. The token embeds explicit
+worker dispatch to `opencall-conversation` with the validated voice/language.
+LiveKit dispatches the worker when the participant joins. Provider keys and the
+LiveKit API secret never reach the browser. Token expiry limits joining; the
+worker's duration limit ends an already connected conversation.
+
+`GROQ_MODEL` defaults to `openai/gpt-oss-20b`. Override it with another Groq
+chat model available to your account. A real LiveKit Cloud deployment can use
+`LIVEKIT_URL=wss://...`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` from that
+project, with the backend and worker configured identically. The local development
+key/secret are only for the loopback server. This prototype has no login or
+per-user quota; put the token endpoint behind authentication and rate limits
+before exposing it publicly.
+
+Continuous conversation requires all four processes (room server, API, worker,
+frontend). A passing health endpoint or issued token does not prove a worker has
+joined or that provider audio works. Browser microphone and interruption behavior
+must be verified with a real conversation.
+
+
+### Continuous conversation validation
+
+- 33 backend tests pass in the clean Python 3.13 environment; `pip check` passes.
+- Frontend ESLint and TypeScript checks pass.
+- Both dashboard pages return their expected HTML from the running development server.
+- The real `/conversation/connect` endpoint returns 200 and valid connection details.
+- A live synthetic-audio test connected to local LiveKit 1.13.10, dispatched the
+  worker, received Gnani/Groq replies over room audio, and published speech during
+  an assistant reply. Agent state changed from speaking to listening, then back to
+  thinking and speaking for the new turn. This verifies the pipeline and
+  interruption handling with generated speech; actual browser microphone,
+  autoplay, speaker echo, and perceived conversation quality still need testing.
+- `bun run build` was attempted but Turbopack's Tailwind loader failed to bind a
+  local port with `Operation not permitted`. Production build verification remains
+  incomplete. No browser automation surface was available for visual verification.
+
+The original 27-test migration validation above applies to the recording endpoints;
+these newer checks cover the room-based conversation implementation.

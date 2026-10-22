@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     app_name: str = "OpenCall API"
     debug: bool = False
     gnani_api_key: SecretStr | None = None
+    groq_api_key: SecretStr | None = None
+    groq_model: str = "openai/gpt-oss-20b"
+    livekit_url: str = "ws://127.0.0.1:7880"
+    livekit_api_key: str = "devkey"
+    livekit_api_secret: SecretStr = SecretStr("secret")
+    conversation_max_seconds: int = 1800
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
