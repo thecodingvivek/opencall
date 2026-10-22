@@ -1,6 +1,6 @@
 # OpenCall backend
 
-Minimal FastAPI backend. Requires Python 3.10 or newer.
+FastAPI HTTP backend with LiveKit Agents speech providers. Requires Python 3.11 or newer.
 
 ## Local setup
 
@@ -15,7 +15,10 @@ cp .env.example .env
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-If `.venv` already exists, skip creating it. Environment variables override
+Use a dedicated virtual environment for this backend. If an older `.venv` also
+contains Google ADK or LiteLLM, those unrelated packages can conflict with
+LiveKit 1.8.8 dependencies; a fresh environment avoids that conflict.
+Environment variables override
 values in `backend/.env`; the app also works with the defaults without this file.
 
 ## Endpoints
@@ -53,30 +56,38 @@ For production, configure the actual frontend origins and run without `--reload`
 The health endpoint checks only that the app responds; no database or authentication
 is configured in this starter.
 
-## Gnani initialization
+## LiveKit speech backend
 
-Set `GNANI_API_KEY` in `backend/.env` and install `requirements.txt`.
-`app/services/gnani.py` provides lazy, cached clients: STT uses the Gnani SDK;
-TTS uses the official REST endpoint with Timbre v3.0:
+Speech runs through `livekit-plugins-gnani==1.8.8` and LiveKit Agents 1.8.8.
+The Next.js dashboard keeps the same HTTP endpoints. Transcription converts the
+validated WAV into a LiveKit `rtc.AudioFrame` and awaits `STT.recognize()`.
+Playback collects a LiveKit `tts.ChunkedStream` into an audio frame and returns WAV.
+Both endpoints are asynchronous; each request owns and closes its provider and
+`aiohttp` session, including on failures or cancellation. Clients are never shared
+between requests, so language and voice settings cannot leak across calls.
 
-```python
-from app.services.gnani import get_gnani_stt_client, get_gnani_tts_client
+Set `GNANI_API_KEY` in `backend/.env`, then install `requirements.txt`.
+The key stays on the backend. Providers are created on demand, so health checks
+and startup work without a key. Restart the server after changing configuration.
 
-stt = get_gnani_stt_client()
-tts = get_gnani_tts_client()
-```
+`app/services/gnani.py` adapts the HTTP routes to LiveKit audio types.
+`app/services/livekit_gnani.py` subclasses the Gnani plugin to own HTTP sessions
+outside a LiveKit worker job. It also provides a small Timbre v3 REST
+`ChunkedStream`: the published plugin only forwards `language` for v2.5, while
+v3 requires it. This adapter explicitly sends `model="timbre-v3.0"`, selected
+voice, language, and delivery-tagged text through LiveKit's audio emitter.
+Output is mono 16-bit WAV at **44.1 kHz**, the highest rate accepted by this
+plugin release (previously 48 kHz). Input remains mono 16-bit WAV at 16 kHz.
+Requests use a 60-second provider timeout and no automatic retries.
 
-The key is loaded through application settings and passed explicitly to each client.
-It is stored as a masked `SecretStr`. Clients are created on first use, so the
-app can start without a key; requesting a client without one raises a clear error.
-Restart the server after changing the key.
+This migration uses LiveKit's speech framework inside the existing HTTP app.
+It does not create a LiveKit room, WebRTC connection, agent worker, or LLM
+conversation. No LiveKit Cloud URL/key/secret is needed for these endpoints.
+A room-based realtime conversation would additionally require a worker,
+room tokens/dispatch, and a frontend LiveKit connection.
 
-Initialization does not transcribe or synthesize anything. TTS explicitly sends
-`model="timbre-v3.0"` through the REST API because the installed SDK 0.8.1 rejects
-v3 voices and language parameters locally. The originally supplied SDK examples
-describe v2.5; the application now uses the current v3 REST contract.
-These clients are synchronous; use regular `def` FastAPI endpoints or offload
-SDK calls to a thread pool from `async def` endpoints.
+References: [Gnani LiveKit plugin](https://docs.gnani.ai/livekit/introduction),
+[Gnani TTS REST contract](https://docs.gnani.ai/api/TTS/tts-inference).
 
 ## Dashboard speech to text
 
@@ -103,7 +114,7 @@ Example response:
 {"transcript":"Hello world","language_code":"en-IN","request_id":"request-uuid"}
 ```
 
-Invalid input returns `422`, oversized input returns `413`, missing SDK or key
+Invalid input returns `422`, oversized input returns `413`, missing plugin or key
 returns `503`, and upstream transcription failures return `502` with a safe
 message. The app does not save audio or transcript files. The recording is sent
 to Gnani for processing. The health endpoint does not verify Gnani connectivity.
@@ -115,8 +126,9 @@ python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
 ```
 
-These tests mock Gnani; live transcription requires the installed SDK, a working
-key, and network access to the service.
+Endpoint tests mock the speech boundary; transport tests exercise the installed
+LiveKit providers with mocked HTTP responses. Live transcription and playback
+still require a working key, network access, and browser verification.
 
 ## Transcript playback
 
@@ -146,7 +158,8 @@ v3 delivery cues; arbitrary emotions such as `sad` are not accepted.
 See [Gnani audio tags](https://docs.gnani.ai/api/TTS/tts-audio-tags).
 
 The response is `audio/wav` with `Cache-Control: no-store` and an
-`X-API-Request-ID` header. The key remains on the backend. Invalid text, voice,
+`X-API-Request-ID` header. Request IDs identify the OpenCall HTTP request;
+the plugin manages provider-side IDs separately. The key remains on the backend. Invalid text, voice,
 language, or delivery returns `422`; missing configuration returns `503`;
 provider failures return `502`.
 
@@ -156,3 +169,12 @@ with the new settings. **Stop** stops playback; **Play** reuses that audio.
 If the browser blocks automatic playback after generation, click **Play**.
 Beginning a new recording or navigating away stops playback and releases audio
 resources. The frontend continues to use Tailwind for these controls.
+
+
+## Migration validation
+
+The migration passes 27 backend tests, including the installed LiveKit plugin's
+STT events, TTS decoding, WAV output, concurrent request isolation, cancellation,
+and HTTP session cleanup, with provider HTTP responses mocked. OpenCall's runtime
+dependency chain was checked independently of unrelated packages in the existing
+virtual environment. Live Gnani requests and browser audio remain unverified.

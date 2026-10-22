@@ -1,43 +1,16 @@
-"""Lazy Gnani REST clients; constructing a client does not make API calls."""
+"""Request-scoped LiveKit speech providers for the HTTP dashboard.
 
-from functools import lru_cache
+The published Gnani plugin omits language from v3 TTS requests. Our
+compatibility stream supplies that field while retaining LiveKit audio handling.
+"""
+
+import asyncio
 from typing import TYPE_CHECKING
-
-import requests
-from pydantic import SecretStr
 
 from app.core.config import get_settings
 
 if TYPE_CHECKING:
-    from gnani.stt import GnaniSTTClient
-
-
-class GnaniTTSV3Client:
-    """Use the documented REST API; SDK 0.8.1 rejects v3 voices/language."""
-
-    def __init__(self, api_key: str):
-        self._api_key = SecretStr(api_key)
-
-    def synthesize(self, text: str, *, voice: str, language: str, request_id: str) -> bytes:
-        response = requests.post(
-            "https://api.vachana.ai/api/v1/tts/inference",
-            headers={
-                "X-API-Key-ID": self._api_key.get_secret_value(),
-                "X-API-Request-ID": request_id,
-                "Content-Type": "application/json",
-            },
-            json={
-                "text": text, "model": "timbre-v3.0", "voice": voice,
-                "language": language,
-                "audio_config": {
-                    "sample_rate": 48000, "encoding": "linear_pcm",
-                    "container": "wav", "num_channels": 1, "sample_width": 2,
-                },
-            },
-            timeout=(10, 60),
-        )
-        response.raise_for_status()
-        return response.content
+    from livekit.plugins.gnani import STT, TTS
 
 
 def _get_api_key() -> str:
@@ -47,14 +20,43 @@ def _get_api_key() -> str:
     return key.get_secret_value()
 
 
-@lru_cache
-def get_gnani_stt_client() -> "GnaniSTTClient":
-    api_key = _get_api_key()
-    from gnani.stt import GnaniSTTClient
+def get_gnani_stt_client(*, language: str) -> "STT":
+    from app.services.livekit_gnani import DashboardSTT
 
-    return GnaniSTTClient(api_key=api_key)
+    return DashboardSTT(api_key=_get_api_key(), language=language)
 
 
-@lru_cache
-def get_gnani_tts_client() -> GnaniTTSV3Client:
-    return GnaniTTSV3Client(api_key=_get_api_key())
+def get_gnani_tts_client(*, voice: str, language: str) -> "TTS":
+    from app.services.livekit_gnani import DashboardTTS
+
+    return DashboardTTS(api_key=_get_api_key(), voice=voice, language=language)
+
+
+async def recognize(client: "STT", pcm: bytes) -> str:
+    from livekit import rtc
+    from livekit.agents import APIConnectOptions
+
+    async with client:
+        event = await client.recognize(
+            rtc.AudioFrame(data=pcm, sample_rate=16000, num_channels=1,
+                           samples_per_channel=len(pcm) // 2),
+            conn_options=APIConnectOptions(max_retry=0, timeout=60),
+        )
+        if not event.alternatives or not isinstance(event.alternatives[0].text, str):
+            raise ValueError("Invalid transcription event")
+        return event.alternatives[0].text
+
+
+async def synthesize_audio(client: "TTS", text: str) -> bytes:
+    from livekit.agents import APIConnectOptions
+
+    async with client:
+        async with client.synthesize(
+            text, conn_options=APIConnectOptions(max_retry=0, timeout=60),
+        ) as stream:
+            # Bound the whole operation as well as the provider HTTP request.
+            async with asyncio.timeout(65):
+                frame = await stream.collect()
+        if frame.samples_per_channel == 0:
+            raise ValueError("Empty synthesis")
+        return frame.to_wav_bytes()
