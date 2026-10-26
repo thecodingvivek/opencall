@@ -16,8 +16,19 @@ class LoginRequest(BaseModel):
 
 
 class UserResponse(BaseModel):
+    user_id: str
     username: str
     display_name: str
+
+
+def require_user(store: Store, session: Session = None) -> dict:
+    user = store.current_user(session) if session else None
+    if user is None:
+        raise HTTPException(401, "Please log in", headers={"Cache-Control": "no-store"})
+    return user
+
+
+CurrentUser = Annotated[dict, Depends(require_user)]
 
 
 @router.post("/login", response_model=UserResponse)
@@ -32,10 +43,7 @@ def login(payload: LoginRequest, response: Response, store: Store):
 
 
 @router.get("/me", response_model=UserResponse)
-def me(response: Response, store: Store, session: Session = None):
-    user = store.current_user(session) if session else None
-    if user is None:
-        raise HTTPException(401, "Please log in", headers={"Cache-Control": "no-store"})
+def me(response: Response, user: CurrentUser):
     response.headers["Cache-Control"] = "no-store"
     return user
 

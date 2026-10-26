@@ -117,8 +117,7 @@ export default function Dashboard() {
     let next: Room | null = null;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Use localhost or HTTPS with a supported browser to access your microphone.");
-      const api = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-      const response = await fetch(`${api}/api/v1/conversation/connect`, {
+      const response = await fetch("/api/conversation/connect", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language_code: language, voice }), signal: controller.signal,
       });

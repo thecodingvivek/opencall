@@ -131,13 +131,18 @@ does not assume a permanently dedicated operating-system process for each user.
 
 LiveKit's `AgentSession` manages the active chat context and feeds it to the LLM.
 This lets later turns refer to earlier conversation in the same running session.
-The application does not implement its own history database, Redis session store,
-conversation ID lookup, persistent summaries, or recovery checkpoints.
+The application now also persists an account phonebook in TinyDB. Login identifies
+the account; each call record binds a stable user ID to its room and participant.
+The worker loads that user's description and previous summary into the agent's
+instructions and exposes `lookup_phonebook` to refresh it during a call.
 
-Ending a session, refreshing the page, or starting a new conversation does not
-restore the old chat context. There is no application-level API for resuming a
-previous room or retrieving its transcript. Provider-side retention is separate
-from this application's storage behavior.
+When the session closes, the worker summarizes essential context with Groq and
+updates only that account's phonebook. A later room receives this concise memory;
+it does not resume the previous LiveKit session or replay the full transcript.
+Temporary transcript text is retained for retry on summary failure and cleared
+after a successful update. Provider-side retention is separate from local storage.
+See [Phonebook and call memory](backend/phonebook.md) for the current schema,
+failure behavior, and endpoints.
 
 ### Token lifetime versus conversation lifetime
 

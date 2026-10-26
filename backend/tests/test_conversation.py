@@ -1,6 +1,8 @@
 import base64
 import json
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 import jwt
@@ -9,12 +11,25 @@ from livekit.agents import APIConnectOptions
 from pydantic import SecretStr
 
 from app.main import app
+from app.services.auth import AuthStore, get_auth_store
+from app.services.phonebook import PhonebookStore, get_phonebook_store
 from app.services.realtime_speech import ConversationTTS
 
 
 class TokenTests(unittest.TestCase):
     def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        path = Path(directory.name) / 'test.json'
+        self.auth = AuthStore(path)
+        self.store = PhonebookStore(path)
+        app.dependency_overrides[get_auth_store] = lambda: self.auth
+        app.dependency_overrides[get_phonebook_store] = lambda: self.store
+        self.addCleanup(app.dependency_overrides.clear)
         self.client = TestClient(app)
+        self.addCleanup(self.client.close)
+        self.user = self.client.post('/api/v1/auth/login', json={
+            'username': 'demo', 'password': 'opencall123'}).json()
         self.settings = Mock(gnani_api_key=SecretStr('gnani-private'),
             groq_api_key=SecretStr('groq-private'), livekit_api_key='test-key',
             livekit_api_secret=SecretStr('s' * 40), livekit_url='ws://127.0.0.1:7880')
@@ -40,9 +55,22 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(metadata['language_code'], 'te-IN')
         self.assertEqual(metadata['voice'], 'Lakshmi')
         self.assertEqual(metadata['participant_identity'], details['participant_identity'])
+        self.assertEqual(metadata['call_id'], details['call_id'])
+        self.assertEqual(self.store.call(details['call_id'])['user_id'], self.user['user_id'])
+        self.assertNotIn('previous_summary', metadata)
+        self.assertNotIn('username', metadata)
         self.assertNotIn('private', response.text)
         other = self.client.post('/api/v1/conversation/connect', json={}).json()
         self.assertNotEqual(details['room_name'], other['room_name'])
+
+    def test_account_is_derived_from_session_and_required(self):
+        response = self.client.post('/api/v1/conversation/connect', json={
+            'username': 'someone-else', 'user_id': 'forged'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.store.call(response.json()['call_id'])['user_id'], self.user['user_id'])
+        self.client.cookies.clear()
+        self.assertEqual(self.client.post('/api/v1/conversation/connect', json={}).status_code, 401)
+        self.assertEqual(self.client.get('/api/v1/conversation/phonebook').status_code, 401)
 
     def test_invalid_options(self):
         for payload in [{'voice': 'Pranav'}, {'language_code': 'bad'}]:

@@ -26,6 +26,9 @@ values in `backend/.env`; the app also works with the defaults without this file
 - `POST /api/v1/auth/login` — validates the local account and sets a session cookie.
 - `GET /api/v1/auth/me` — returns the logged-in user, or `401`.
 - `POST /api/v1/auth/logout` — revokes the session and clears its cookie.
+- `POST /api/v1/conversation/connect` — creates an account-bound call (login required).
+- `GET /api/v1/conversation/phonebook` — the signed-in account's profile and previous summary.
+- `GET /api/v1/conversation/{call_id}` — the account's call and memory-save status.
 - `GET /` — app name and documentation URL.
 - `GET /api/v1/health` — returns `{"status":"ok"}` for process health.
 - `POST /api/v1/speech/transcribe` — transcribes a WAV recording through Gnani.
@@ -66,7 +69,7 @@ session. Log in with **username `demo`** and **password `opencall123`**.
 Both dashboard pages share the session check and a **Log out** button.
 
 API startup creates `backend/data/opencall.json` and seeds the demo account
-only if it does not exist. TinyDB uses `users` and `sessions` tables. Passwords
+only if it does not exist. TinyDB uses `users`, `sessions`, `phonebook`, and `calls` tables. Passwords
 use salted PBKDF2-SHA256 hashes; only SHA256 hashes of random session tokens
 are stored. Sessions expire after 24 hours and survive an API restart.
 The database directory is ignored by Git. Override its location with `TINYDB_PATH`
@@ -79,12 +82,19 @@ cookie against `/api/v1/auth/me` before rendering the dashboard. `API_URL` can
 override the frontend server's backend address; it falls back to
 `NEXT_PUBLIC_API_URL`, then `http://127.0.0.1:8000`.
 
-This is the first local development login step. The speech and conversation
-API routes still accept requests without a session. The demo credentials are
-public, cookies permit local HTTP, and there is no login rate limit. TinyDB
-uses JSON storage; run **one API worker** against the file. The in-process
-lock serializes this app's database operations, but does not coordinate other
-processes. These limits match [TinyDB's storage guidance](https://tinydb.readthedocs.io/en/latest/usage.html#remarks-on-storage).
+Conversation endpoints require a valid session. The recording speech API routes
+still accept requests without a session. The demo credentials are public,
+cookies permit local HTTP, and there is no login rate limit.
+
+The API and voice worker share TinyDB through `app/core/database.py`. Transactions
+use a process lock plus a filesystem lock and atomically replace the JSON file
+after all table updates. Run them on the **same machine and local filesystem**,
+using the same absolute `TINYDB_PATH`; other tools must use this wrapper too.
+Direct concurrent TinyDB access is unsafe, as described in
+[TinyDB's storage guidance](https://tinydb.readthedocs.io/en/latest/usage.html#remarks-on-storage).
+
+See [Phonebook and call memory](phonebook.md) for schemas, account migration,
+call lifecycle, failure recovery, and API examples.
 
 ## LiveKit speech backend
 
@@ -271,23 +281,29 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:3000/dashboard`, choose a language and voice, and click
+Open `http://localhost:3000/dashboard`, log in, choose a language and voice, and click
 **Start conversation**. Allow the microphone. The agent greets you and then
 listens continuously. Use **Mute microphone**, **End conversation**, or
 **Enable audio** if browser autoplay is blocked. Settings are locked during a
 session. Transcripts are shown in this tab and cleared when the session ends.
+The backend saves essential account context in the phonebook after each spoken
+call; future calls receive its profile and rolling summary. Temporary transcript
+text is cleared after successful summarization; audio is not stored by this feature.
 A connection failure, permission denial, missing worker, or lost connection is
 shown in the UI. Leaving the page disconnects and releases the microphone.
 Sessions end after `CONVERSATION_MAX_SECONDS` (default 30 minutes).
 
 ### Configuration and connection contract
 
-`POST /api/v1/conversation/connect` accepts
-`{"language_code":"en-IN","voice":"Shivani"}`. It returns `server_url`,
+`POST /api/v1/conversation/connect` requires the login cookie and accepts
+`{"language_code":"en-IN","voice":"Shivani"}`. It returns `call_id`, `server_url`,
 `participant_token`, `room_name`, and `participant_identity` with `no-store`.
 Each call creates a unique room identity and signs a 10-minute join token,
 restricted to that room and microphone publication. The token embeds explicit
-worker dispatch to `opencall-conversation` with the validated voice/language.
+worker dispatch to `opencall-conversation` with the validated voice/language and
+the account-bound call ID. Profile and summary text are read by the worker from
+TinyDB rather than embedded in the browser's token. The browser calls the
+same-origin `/api/conversation/connect` proxy to forward its session cookie.
 LiveKit dispatches the worker when the participant joins. Provider keys and the
 LiveKit API secret never reach the browser. Token expiry limits joining; the
 worker's duration limit ends an already connected conversation.
@@ -296,9 +312,9 @@ worker's duration limit ends an already connected conversation.
 chat model available to your account. A real LiveKit Cloud deployment can use
 `LIVEKIT_URL=wss://...`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` from that
 project, with the backend and worker configured identically. The local development
-key/secret are only for the loopback server. This prototype has a local demo login
-but no API authentication or per-user quota; put the token endpoint behind authentication and rate limits
-before exposing it publicly.
+key/secret are only for the loopback server. Conversation tokens are now protected
+by the local demo login. Add real account provisioning, production cookie settings,
+and per-user quotas/rate limits before exposing the service publicly.
 
 Continuous conversation requires all four processes (room server, API, worker,
 frontend). A passing health endpoint or issued token does not prove a worker has

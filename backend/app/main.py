@@ -6,11 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.services.auth import get_auth_store
+from app.services.phonebook import get_phonebook_store
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_auth_store()
+    get_phonebook_store()
     yield
 
 
