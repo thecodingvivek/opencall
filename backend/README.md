@@ -23,6 +23,9 @@ values in `backend/.env`; the app also works with the defaults without this file
 
 ## Endpoints
 
+- `POST /api/v1/auth/login` — validates the local account and sets a session cookie.
+- `GET /api/v1/auth/me` — returns the logged-in user, or `401`.
+- `POST /api/v1/auth/logout` — revokes the session and clears its cookie.
 - `GET /` — app name and documentation URL.
 - `GET /api/v1/health` — returns `{"status":"ok"}` for process health.
 - `POST /api/v1/speech/transcribe` — transcribes a WAV recording through Gnani.
@@ -53,8 +56,35 @@ Add endpoint modules in `app/api/routes/` and include their routers in
 origin changes. The defaults allow the local Next.js frontend on port 3000.
 
 For production, configure the actual frontend origins and run without `--reload`.
-The health endpoint checks only that the app responds; no database or authentication
-is configured in this starter.
+The health endpoint checks only that the app responds.
+
+## Local TinyDB login
+
+Start the API and frontend (`cd frontend` then `bun run dev`) and open
+`http://localhost:3000`. The dashboard redirects to `/login` without a valid
+session. Log in with **username `demo`** and **password `opencall123`**.
+Both dashboard pages share the session check and a **Log out** button.
+
+API startup creates `backend/data/opencall.json` and seeds the demo account
+only if it does not exist. TinyDB uses `users` and `sessions` tables. Passwords
+use salted PBKDF2-SHA256 hashes; only SHA256 hashes of random session tokens
+are stored. Sessions expire after 24 hours and survive an API restart.
+The database directory is ignored by Git. Override its location with `TINYDB_PATH`
+in `backend/.env`. To reset local data, stop the API and delete this file;
+the next startup recreates the demo account and invalidates previous sessions.
+
+The frontend proxies login/logout through `/api/auth/…`, so the browser receives
+an HttpOnly, SameSite=Lax cookie on the frontend host. The server checks this
+cookie against `/api/v1/auth/me` before rendering the dashboard. `API_URL` can
+override the frontend server's backend address; it falls back to
+`NEXT_PUBLIC_API_URL`, then `http://127.0.0.1:8000`.
+
+This is the first local development login step. The speech and conversation
+API routes still accept requests without a session. The demo credentials are
+public, cookies permit local HTTP, and there is no login rate limit. TinyDB
+uses JSON storage; run **one API worker** against the file. The in-process
+lock serializes this app's database operations, but does not coordinate other
+processes. These limits match [TinyDB's storage guidance](https://tinydb.readthedocs.io/en/latest/usage.html#remarks-on-storage).
 
 ## LiveKit speech backend
 
@@ -266,8 +296,8 @@ worker's duration limit ends an already connected conversation.
 chat model available to your account. A real LiveKit Cloud deployment can use
 `LIVEKIT_URL=wss://...`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` from that
 project, with the backend and worker configured identically. The local development
-key/secret are only for the loopback server. This prototype has no login or
-per-user quota; put the token endpoint behind authentication and rate limits
+key/secret are only for the loopback server. This prototype has a local demo login
+but no API authentication or per-user quota; put the token endpoint behind authentication and rate limits
 before exposing it publicly.
 
 Continuous conversation requires all four processes (room server, API, worker,

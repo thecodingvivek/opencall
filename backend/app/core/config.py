@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     app_name: str = "OpenCall API"
     debug: bool = False
+    tinydb_path: Path = Path(__file__).resolve().parents[2] / "data" / "opencall.json"
     gnani_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
