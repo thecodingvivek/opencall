@@ -246,6 +246,9 @@ The agent's conversation history is managed by LiveKit, including interrupted tu
 
 ### Run locally
 
+Agent tools, including current/forecast/historical weather, are documented in
+[tools/](tools/README.md).
+
 Agent tracing is available in [Phoenix observability](observability/README.md).
 With tracing enabled, `bun run dev` also starts Phoenix at `http://localhost:6006`.
 

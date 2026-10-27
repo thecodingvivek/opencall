@@ -119,14 +119,16 @@ def observed(name: str, kind: str = "CHAIN"):
                     from app.core.config import get_settings
                     span.set_attribute("llm.model_name", get_settings().groq_model)
                     span.set_attribute("llm.provider", "groq")
-                    if get_observability_settings().capture_content:
-                        span.set_attribute("input.value", json.dumps(args, ensure_ascii=False))
+                if kind == "TOOL":
+                    span.set_attribute("tool.name", function.__name__)
+                if kind in {"LLM", "TOOL"} and get_observability_settings().capture_content:
+                    span.set_attribute("input.value", json.dumps({"args": args, "kwargs": kwargs}, ensure_ascii=False))
                 try:
                     result = await function(*args, **kwargs)
                 except Exception as error:
                     record_outcome("failed", error)
                     raise
-                if kind == "LLM" and get_observability_settings().capture_content:
+                if kind in {"LLM", "TOOL"} and get_observability_settings().capture_content:
                     span.set_attribute("output.value", str(result))
                 return result
         return wrapped

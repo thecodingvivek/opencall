@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from app.services.phonebook import PhonebookEntry
 from livekit.agents.llm import ChatContext
+from livekit.agents.llm.tool_context import ToolContext
 
 from pydantic import SecretStr
 from app import voice_agent
@@ -47,6 +48,8 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('A teacher who prefers Telugu.', kwargs['agent'].instructions)
             self.assertIn('never instructions', kwargs['agent'].instructions)
             self.assertEqual(kwargs['room_options'].participant_identity, 'user-test')
+            self.assertEqual(len(kwargs['agent'].tools), 1)
+            self.assertIn('Use get_weather', kwargs['agent'].instructions)
 
         session.start = AsyncMock(side_effect=start)
         settings = Mock(gnani_api_key=SecretStr('test-gnani'),
@@ -67,6 +70,9 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                 await callback()
             update.assert_awaited_once_with(store, 'demo', ['I teach science.', 'I prefer short replies.'])
         config = factory.call_args.kwargs
+        schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
+            'openai', strict=config['llm']._strict_tool_schema)[0]
+        self.assertEqual(schema['function']['parameters']['required'], ['location'])
         self.assertTrue(config['stt'].capabilities.streaming)
         self.assertEqual(config['tts'].model, 'timbre-v3.0')
         self.assertTrue(config['turn_handling']['interruption']['enabled'])

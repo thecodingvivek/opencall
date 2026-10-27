@@ -65,3 +65,14 @@ class ObservabilityTests(unittest.IsolatedAsyncioTestCase):
         span = self.exporter.get_finished_spans()[0]
         self.assertIn('I teach science.', span.attributes['input.value'])
         self.assertEqual(span.attributes['output.value'], 'A teacher.')
+
+    async def test_weather_execution_has_a_tool_span_without_input_content(self):
+        from unittest.mock import AsyncMock
+        from tools.weather import get_weather
+        with patch('tools.weather.weather_data', new=AsyncMock(return_value={'source': 'Open-Meteo'})):
+            await get_weather(location='Hyderabad', start='tomorrow')
+        span = self.exporter.get_finished_spans()[0]
+        self.assertEqual(span.name, 'tool.get_weather')
+        self.assertEqual(span.attributes['openinference.span.kind'], 'TOOL')
+        self.assertEqual(span.attributes['tool.name'], 'get_weather')
+        self.assertNotIn('input.value', span.attributes)

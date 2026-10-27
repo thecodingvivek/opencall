@@ -38,6 +38,7 @@ migration logging; those features are not needed for collecting OpenCall traces.
 | `opencall.session` | Full session duration, username, room/session ID, language and voice. |
 | LiveKit spans | Session startup, voice pipeline, turn handling, interruption and provider timings. |
 | OpenAI SDK spans | OpenAI-compatible Groq requests, model information, token usage and failures. |
+| `tool.get_weather` (TOOL) | A weather tool execution, its duration and any failure; `tool.name` identifies the tool. |
 | `phonebook.update_description` | Description update outcome: updated, unchanged, no speech, or failed. |
 | `phonebook.generate_description` | Groq description-generation latency, model, token usage and errors. |
 
@@ -52,7 +53,9 @@ The pipeline looks like this (exact LiveKit span names depend on the SDK):
 ```text
 opencall.session
 ├── LiveKit session, turn and speech spans
-│   └── Groq/OpenAI SDK LLM spans
+│   ├── Groq/OpenAI SDK LLM spans
+│   └── function_tool
+│       └── tool.get_weather (TOOL)
 └── phonebook.update_description
     └── phonebook.generate_description
 ```

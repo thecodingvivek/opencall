@@ -50,6 +50,7 @@ flowchart TD
     Worker <-->|Read and update description| DB
     Worker <-->|Speech to text and text to speech| Gnani[Gnani]
     Worker <-->|Replies and description updates| Groq[Groq]
+    Worker <-->|Weather tool requests| Weather[Open-Meteo]
     Worker -->|Session and model traces| Phoenix[Phoenix observability]
 ```
 
@@ -125,6 +126,28 @@ the session's memory while the conversation runs.
 Restarting LiveKit or the worker interrupts an active call. The launcher can
 restart its processes, but the user must start a new conversation afterward.
 Restarting only FastAPI does not restart an already connected voice room.
+
+## Agent tools
+
+The agent's tools are registered through [backend/tools/](backend/tools/README.md).
+Its first tool is `get_weather`, which accepts a city and an optional local
+date, time, or range.
+
+For a weather question, Groq selects the tool and its arguments. Python resolves
+the location and requests current, forecast, or historical data from Open-Meteo.
+The result goes back to Groq, which uses it to answer the user aloud. The agent
+asks for a city if it does not know one and reports unsupported dates rather
+than guessing weather.
+
+Forecasts extend through 15 days after today; historical dates start in 1940.
+A lookup supports up to 366 days, with compact summaries for long periods to
+keep tool results small. Hour-specific requests use hourly estimates. See the
+[tool documentation](backend/tools/README.md) for formats and provider limits.
+
+Each execution appears in Phoenix as a `tool.get_weather` span of kind `TOOL`.
+The tool's name, timing and error status are visible with content capture off;
+arguments and results are included only when `PHOENIX_CAPTURE_CONTENT=true`.
+Weather lookups do not add database tables.
 
 ## How the phonebook description updates
 
@@ -246,6 +269,7 @@ which forwards the session cookie to FastAPI. PUT accepts
 | [observability/](backend/observability/README.md) | Phoenix collector, configuration, session spans and model instrumentation. |
 | [auth.py](backend/app/services/auth.py) | Username/password login and sessions. |
 | [conversation.py](backend/app/services/conversation.py) | Voice availability checks and signed room tokens. |
+| [tools/](backend/tools/README.md) | Weather tool and the list of tools registered with the agent. |
 | [phonebook.py](backend/app/services/phonebook.py) | Two-field phonebook storage and description generation. |
 | [voice_agent.py](backend/app/voice_agent.py) | Loads the description, runs the assistant, and saves an update on shutdown. |
 | [database.py](backend/app/core/database.py) | Shared file locking and atomic TinyDB writes. |
