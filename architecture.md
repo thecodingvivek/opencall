@@ -123,24 +123,81 @@ Restarting LiveKit or the worker interrupts an active call. The launcher can
 restart its processes, but the user must start a new conversation afterward.
 Restarting only FastAPI does not restart an already connected voice room.
 
-## When the session ends
+## How the phonebook description updates
 
-1. The worker closes the voice session and reads the user's messages from its
-   in-memory conversation history.
-2. It sends those messages and the latest existing description to Groq.
-3. Groq merges necessary facts, preferences, goals, and ongoing context into
-   one updated description. Existing facts should stay unless the user corrects them.
-4. The worker validates the result and saves only `username` and `description`.
-5. The next session loads that updated description into its starting prompt.
+The update runs **after the voice session closes**, including when the user
+clicks End conversation or leaves the room. It is handled by the worker's
+shutdown callback, so the browser does not need to send a separate save request.
 
-This update can take a few seconds after disconnect. Assistant messages are
-excluded from the update input so suggestions are not treated as user facts.
-No transcript or separate summary is written to the database.
+```text
+Session ends
+    ↓
+Read the user's spoken messages from session memory
+    ↓
+Load the latest description for that username
+    ↓
+Groq merges useful details into the description
+    ↓
+Validate and save the updated description in TinyDB
+    ↓
+The next session includes it in the assistant's prompt
+```
 
-Empty sessions skip the update. Provider errors, invalid output, or a newer
-concurrent edit preserve the current description. There is no background retry.
-Force-killing the worker can skip shutdown saving, and model extraction can
-make mistakes. The description can also be edited through the API.
+### What is sent to Groq
+
+The worker sends two inputs: the existing description and the user's spoken
+messages from the session. Assistant messages are excluded so suggestions are
+not treated as facts about the user. The existing description is read again at
+shutdown, rather than using only the copy loaded at session start.
+
+The prompt asks Groq to preserve existing facts, apply explicit corrections, and
+add useful identity, background, preferences, goals, and ongoing context. It
+asks for no invented details, credentials, or unnecessary sensitive information.
+If there is nothing useful to add, the description should stay the same.
+
+### What is saved
+
+Groq returns JSON containing only `description`. The backend validates the
+response and its 800-character limit. A nonempty, changed description replaces
+the existing value for the same username. The phonebook still has exactly two
+fields: `username` and `description`.
+
+For example, suppose the existing description is:
+
+> A science teacher.
+
+During the session, the user says:
+
+> I prefer short replies in Telugu.
+
+The saved entry could become:
+
+```json
+{
+  "username": "demo",
+  "description": "A science teacher who prefers short replies in Telugu."
+}
+```
+
+### Timing and failed updates
+
+Saving may take a few seconds after disconnect. To inspect the result while
+logged in, request `GET /api/conversation/phonebook` through the frontend.
+
+Empty sessions skip generation. An empty or unchanged result is not saved.
+Provider errors, incomplete or invalid output, and descriptions over the limit
+leave the previous value intact. If another update changes the description
+while Groq is generating, this update is discarded to preserve that newer edit.
+There is no background retry, and force-killing the worker can skip shutdown
+saving. Model extraction can still make mistakes; PUT remains available for
+manual corrections.
+
+Spoken messages stay in session memory. No transcript, call record, or separate
+summary is saved to the database.
+
+The implementation is in
+[close_and_update_description](backend/app/voice_agent.py) and
+[update_description_after_session](backend/app/services/phonebook.py).
 
 ## Main endpoints
 
