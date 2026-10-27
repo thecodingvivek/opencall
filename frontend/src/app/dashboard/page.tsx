@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Room, RoomEvent } from "livekit-client";
+import { ConnectionError, ConnectionErrorReason, DisconnectReason, Room, RoomEvent } from "livekit-client";
 import {
   RoomContext, RoomAudioRenderer, useVoiceAssistant, useTranscriptions,
   useLocalParticipant, useRoomContext, useConnectionState,
@@ -115,6 +115,7 @@ export default function Dashboard() {
     request.current = controller;
     const timeout = setTimeout(() => controller.abort(), 15000);
     let next: Room | null = null;
+    let joined = false;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Use localhost or HTTPS with a supported browser to access your microphone.");
       const response = await fetch("/api/conversation/connect", {
@@ -129,11 +130,14 @@ export default function Dashboard() {
       active.current = next;
       setRoom(next);
       const connectedRoom = next;
-      next.on(RoomEvent.Disconnected, () => {
-        if (active.current !== connectedRoom) return;
-        active.current = null; busy.current = false; generation.current++;
-        setRoom(null); setConnecting(false);
-        setError("The conversation ended. You can start a new one.");
+      next.on(RoomEvent.Disconnected, reason => {
+        // A failed initial connection also emits this event. Let catch report
+        // that failure instead of invalidating its attempt and hiding the cause.
+        if (active.current !== connectedRoom || !joined) return;
+        end();
+        setError(reason === DisconnectReason.SERVER_SHUTDOWN
+          ? "The voice server restarted. Start a new conversation to reconnect."
+          : "The voice connection was lost. Check your connection and start a new conversation.");
       });
       next.on(RoomEvent.ParticipantDisconnected, participant => {
         if (!participant.isAgent || active.current !== connectedRoom) return;
@@ -141,6 +145,7 @@ export default function Dashboard() {
         setError("The assistant disconnected. Start a new conversation to reconnect.");
       });
       await next.connect(details.server_url, details.participant_token);
+      joined = true;
       if (attempt !== generation.current) { await next.disconnect(); return; }
       await next.localParticipant.setMicrophoneEnabled(true);
       if (attempt !== generation.current) {
@@ -155,6 +160,9 @@ export default function Dashboard() {
         setRoom(null); setConnecting(false);
         setError(cause instanceof Error && cause.name === "NotAllowedError" ? "Microphone access was denied. Allow it in your browser settings, then try again."
           : cause instanceof Error && cause.name === "AbortError" ? "Connection timed out. Check that the backend is running."
+          : cause instanceof ConnectionError && [ConnectionErrorReason.ServerUnreachable,
+            ConnectionErrorReason.WebSocket, ConnectionErrorReason.Timeout].includes(cause.reason)
+            ? "Cannot connect to the voice server. Check that LiveKit is running, then try again."
           : cause instanceof Error ? cause.message : "Could not connect to the conversation.");
       }
     } finally {
