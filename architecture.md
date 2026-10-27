@@ -16,10 +16,11 @@ This runs [scripts/dev.ts](scripts/dev.ts), which starts the local services in o
 
 | Order | Service | Address | Responsibility |
 | --- | --- | --- | --- |
-| 1 | LiveKit server | `127.0.0.1:7880` | Connects the browser and voice worker through a live room. |
-| 2 | Python voice worker | Health checks at `127.0.0.1:8081` | Runs the assistant and reads/updates the phonebook. |
-| 3 | FastAPI backend | `127.0.0.1:8000` | Handles login, phonebook requests, and room access. |
-| 4 | Next.js frontend | `localhost:3000` | Shows the dashboard, captures the microphone, and plays replies. |
+| 1 | Phoenix (when enabled) | `127.0.0.1:6006` | Collects agent traces and provides the observability UI. |
+| 2 | LiveKit server | `127.0.0.1:7880` | Connects the browser and voice worker through a live room. |
+| 3 | Python voice worker | Health checks at `127.0.0.1:8081` | Runs the assistant and reads/updates the phonebook. |
+| 4 | FastAPI backend | `127.0.0.1:8000` | Handles login, phonebook requests, and room access. |
+| 5 | Next.js frontend | `localhost:3000` | Shows the dashboard, captures the microphone, and plays replies. |
 
 The launcher waits until each service is ready before starting the next one.
 It uses `backend/.venv-voice/bin/python` for the worker and API.
@@ -49,6 +50,7 @@ flowchart TD
     Worker <-->|Read and update description| DB
     Worker <-->|Speech to text and text to speech| Gnani[Gnani]
     Worker <-->|Replies and description updates| Groq[Groq]
+    Worker -->|Session and model traces| Phoenix[Phoenix observability]
 ```
 
 Gnani and Groq are services called by the worker. The browser and worker are the
@@ -77,7 +79,8 @@ A phonebook entry has exactly two fields:
 The username connects the account to its description. An empty description is
 allowed. Updates are limited to 800 characters. Database access uses a shared
 file lock and atomic writes so the API and worker can safely share the local file.
-There are no call records or stored transcripts.
+There are no call records or stored transcripts in TinyDB. Phoenix stores its
+observability data separately under `backend/observability/data/`.
 
 ## Login and session start
 
@@ -193,11 +196,32 @@ saving. Model extraction can still make mistakes; PUT remains available for
 manual corrections.
 
 Spoken messages stay in session memory. No transcript, call record, or separate
-summary is saved to the database.
+summary is saved to TinyDB. Optional trace content capture is described below.
 
 The implementation is in
 [close_and_update_description](backend/app/voice_agent.py) and
 [update_description_after_session](backend/app/services/phonebook.py).
+
+## Agent observability
+
+Phoenix shows how the agent runs: session duration, voice pipeline stages,
+LLM requests, token usage, errors, and the description update after the call.
+Open **http://localhost:6006** and select the **opencall** project.
+
+The worker exports LiveKit's native spans and OpenAI-compatible Groq request
+spans. A parent `opencall.session` span groups the call and description-update
+spans together using the room/session ID and username. On shutdown the worker
+finishes the description update, ends the parent span, and flushes traces.
+
+All tracing code, settings, dependencies, and the local Phoenix runner live in
+[backend/observability/](backend/observability/README.md). Its generated trace
+database is ignored by Git and separate from the phonebook.
+
+Tracing is enabled by default. `PHOENIX_ENABLED=false` disables it. Timing,
+model/token information, outcomes and session/user labels are captured by default;
+prompt and reply text are hidden. Set `PHOENIX_CAPTURE_CONTENT=true` in
+`backend/.env` to store and inspect that text in Phoenix. Restart the launcher
+and worker after changing these settings. This integration does not add audio recording.
 
 ## Main endpoints
 
@@ -218,7 +242,8 @@ which forwards the session cookie to FastAPI. PUT accepts
 
 | File | Responsibility |
 | --- | --- |
-| [scripts/dev.ts](scripts/dev.ts) | Starts services, waits for readiness, and restarts managed processes. |
+| [scripts/dev.ts](scripts/dev.ts) | Starts services including Phoenix, waits for readiness, and restarts managed processes. |
+| [observability/](backend/observability/README.md) | Phoenix collector, configuration, session spans and model instrumentation. |
 | [auth.py](backend/app/services/auth.py) | Username/password login and sessions. |
 | [conversation.py](backend/app/services/conversation.py) | Voice availability checks and signed room tokens. |
 | [phonebook.py](backend/app/services/phonebook.py) | Two-field phonebook storage and description generation. |

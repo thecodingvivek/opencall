@@ -11,6 +11,7 @@ from tinydb import Query
 
 from app.core.database import database
 from app.core.config import get_settings
+from observability.tracing import observed, record_llm_usage, record_outcome
 
 
 class PhonebookEntry(BaseModel):
@@ -66,6 +67,7 @@ def get_phonebook_store() -> PhonebookStore:
     return PhonebookStore(get_auth_store().path)
 
 
+@observed("phonebook.generate_description", kind="LLM")
 async def generate_description(description: str, statements: str) -> str:
     settings = get_settings()
     if not settings.groq_api_key:
@@ -93,15 +95,18 @@ async def generate_description(description: str, statements: str) -> str:
             headers={"Authorization": f"Bearer {settings.groq_api_key.get_secret_value()}"}) as response:
             response.raise_for_status()
             result = await response.json()
+    record_llm_usage(result)
     choice = result["choices"][0]
     if choice.get("finish_reason") != "stop":
         raise ValueError("Incomplete description response")
     return DescriptionUpdate.model_validate_json(choice["message"]["content"]).description
 
 
+@observed("phonebook.update_description")
 async def update_description_after_session(store: PhonebookStore, username: str, statements: list[str]) -> None:
     text = "\n".join(statement.strip() for statement in statements if statement.strip())
     if not text:
+        record_outcome("no_speech")
         return
     # Keep introductions and recent corrections within a bounded model request.
     if len(text) > 24000:
@@ -113,6 +118,10 @@ async def update_description_after_session(store: PhonebookStore, username: str,
             await asyncio.to_thread(store.set_description, username, description,
                                     expected_description=entry.description)
             logging.getLogger(__name__).info("Phonebook description updated", extra={"username": username})
+            record_outcome("updated")
+        else:
+            record_outcome("unchanged")
     except Exception as error:
+        record_outcome("failed", error)
         logging.getLogger(__name__).warning("Phonebook description update failed; keeping existing description",
             extra={"username": username, "error_type": type(error).__name__})

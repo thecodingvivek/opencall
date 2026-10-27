@@ -55,6 +55,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(voice_agent, 'settings', settings), \
              patch.object(voice_agent, 'AgentSession', return_value=session) as factory, \
              patch.object(voice_agent, 'get_phonebook_store', return_value=store), \
+             patch('observability.tracing.configure', return_value=None), \
              patch.object(voice_agent, 'update_description_after_session', new=AsyncMock()) as update, \
              patch.object(voice_agent.silero.VAD, 'load', return_value=Mock()):
             await voice_agent.conversation(ctx)
