@@ -40,9 +40,12 @@ flowchart LR
     Phonebook --> Agent[Voice assistant]
 ```
 
-Descriptions are updated explicitly through the API. Ending a conversation does
-not update the phonebook. The application does not store call records,
-conversation transcripts, or summaries.
+When a session ends, the worker uses the user’s spoken messages to merge
+necessary details into the existing description. This happens after the voice
+session closes and may take a few seconds. The next session reads the updated
+description. Only `username` and `description` are saved; spoken messages remain
+in session memory and are discarded after shutdown. The description can also be
+edited through the API.
 
 ## Voice flow
 
@@ -72,7 +75,7 @@ The backend takes the username from the session.
 - [auth.py](backend/app/services/auth.py): username/password login and sessions.
 - [phonebook.py](backend/app/services/phonebook.py): the two-field phonebook and its storage.
 - [conversation routes](backend/app/api/routes/conversation.py): authenticated connection and phonebook endpoints.
-- [voice_agent.py](backend/app/voice_agent.py): reads the description and runs the voice assistant.
+- [voice_agent.py](backend/app/voice_agent.py): reads the description, runs the assistant, and updates the description on shutdown.
 
 See [backend setup](backend/README.md#run-locally) for startup commands and
 [phonebook details](backend/phonebook.md) for the API request format.

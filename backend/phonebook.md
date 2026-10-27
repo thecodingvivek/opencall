@@ -35,7 +35,17 @@ The frontend proxies these requests through `/api/conversation/phonebook`.
 When a conversation starts, the backend passes the authenticated username in
 signed LiveKit dispatch metadata. The worker reads that username's phonebook
 entry and includes the description in the assistant's instructions as background data.
-Descriptions are saved explicitly through PUT; they are not generated after calls.
+When the session ends, the worker closes the voice session and sends the existing
+description plus the user's spoken messages to Groq. It merges useful facts,
+preferences, goals and ongoing context into a description of at most 800 characters.
+Only the updated description is saved; the phonebook still has exactly two fields.
+Messages stay in session memory and are not written to the database.
+
+Empty sessions skip the update. Provider errors, invalid output, or a newer
+concurrent edit preserve the current description. There is no background retry.
+Updates take a few seconds after disconnect, so wait briefly before checking GET.
+A hard kill can skip the shutdown callback. Model extraction can make mistakes.
+PUT remains available for explicit edits.
 
 ## Existing local data
 

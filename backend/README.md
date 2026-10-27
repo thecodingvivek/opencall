@@ -286,8 +286,10 @@ listens continuously. Use **Mute microphone**, **End conversation**, or
 **Enable audio** if browser autoplay is blocked. Settings are locked during a
 session. Transcripts are shown in this tab and cleared when the session ends.
 The worker reads the signed-in username’s saved phonebook description when a
-conversation starts. Descriptions are updated explicitly through the phonebook
-API. Conversation transcripts, call records, and summaries are not saved.
+conversation starts. On session shutdown, useful details from the user’s speech
+are merged into that description. Only the description is saved; conversation
+transcripts, call records, and separate summaries are not stored. The phonebook
+API also supports explicit edits.
 A connection failure, permission denial, missing worker, or lost connection is
 shown in the UI. Leaving the page disconnects and releases the microphone.
 Sessions end after `CONVERSATION_MAX_SECONDS` (default 30 minutes).

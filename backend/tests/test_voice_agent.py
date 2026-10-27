@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 from app.services.phonebook import PhonebookEntry
+from livekit.agents.llm import ChatContext
 
 from pydantic import SecretStr
 from app import voice_agent
@@ -25,7 +26,12 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         ctx.connect = AsyncMock(side_effect=connect)
         ctx.wait_for_participant = AsyncMock()
         session = Mock()
-        session.aclose = AsyncMock()
+        session.history = ChatContext()
+        session.history.add_message(role='assistant', content='Perhaps you enjoy hiking?')
+        session.history.add_message(role='user', content='I teach science.')
+        async def close():
+            session.history.add_message(role='user', content='I prefer short replies.')
+        session.aclose = AsyncMock(side_effect=close)
         handlers = {}
         def on(event):
             def register(handler):
@@ -49,6 +55,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(voice_agent, 'settings', settings), \
              patch.object(voice_agent, 'AgentSession', return_value=session) as factory, \
              patch.object(voice_agent, 'get_phonebook_store', return_value=store), \
+             patch.object(voice_agent, 'update_description_after_session', new=AsyncMock()) as update, \
              patch.object(voice_agent.silero.VAD, 'load', return_value=Mock()):
             await voice_agent.conversation(ctx)
             store.get.assert_called_once_with('demo')
@@ -57,6 +64,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             ctx.shutdown.assert_called_once_with(reason='conversation ended')
             for callback in callbacks:
                 await callback()
+            update.assert_awaited_once_with(store, 'demo', ['I teach science.', 'I prefer short replies.'])
         config = factory.call_args.kwargs
         self.assertTrue(config['stt'].capabilities.streaming)
         self.assertEqual(config['tts'].model, 'timbre-v3.0')

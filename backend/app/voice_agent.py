@@ -5,16 +5,18 @@ import logging
 
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli, room_io
 from livekit.plugins import gnani, openai, silero
+from livekit.agents.llm import ChatMessage
 
 from app.core.config import get_settings
 from app.services.conversation import AGENT_NAME, ConversationOptions
-from app.services.phonebook import get_phonebook_store
+from app.services.phonebook import get_phonebook_store, update_description_after_session
 from app.services.realtime_speech import ConversationTTS
 
 settings = get_settings()
 server = AgentServer(
     ws_url=settings.livekit_url, api_key=settings.livekit_api_key,
     api_secret=settings.livekit_api_secret.get_secret_value(),
+    shutdown_process_timeout=30,
 )
 
 
@@ -30,7 +32,8 @@ async def conversation(ctx: JobContext):
     username = metadata.get("username")
     if not isinstance(username, str) or not username:
         raise ValueError("Conversation dispatch is missing its username")
-    entry = get_phonebook_store().get(username)
+    store = get_phonebook_store()
+    entry = store.get(username)
 
     session = AgentSession(
         stt=gnani.STT(api_key=settings.gnani_api_key.get_secret_value(),
@@ -51,7 +54,15 @@ async def conversation(ctx: JobContext):
         },
     )
 
-    ctx.add_shutdown_callback(session.aclose)
+    async def close_and_update_description():
+        try:
+            await session.aclose()
+        finally:
+            statements = [item.text_content for item in session.history.items
+                          if isinstance(item, ChatMessage) and item.role == "user" and item.text_content]
+            await update_description_after_session(store, username, statements)
+
+    ctx.add_shutdown_callback(close_and_update_description)
 
     @session.on("close")
     def on_close(_event):

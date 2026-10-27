@@ -136,8 +136,11 @@ The application stores a simple phonebook in TinyDB. Each entry contains only
 is passed to the worker in signed agent dispatch metadata. The worker loads that
 username's description before starting the assistant.
 
-Descriptions are updated explicitly through the phonebook API. There are no
-stored call records, transcripts, automatic summaries, or end-of-call updates.
+At session end, the worker merges necessary details from the user’s spoken
+messages into the existing description using Groq. Only the description is saved;
+there are no stored call records, transcripts, or separate summaries. Empty
+sessions and failed updates preserve the description. Explicit edits are also
+available through the phonebook API.
 See [Phonebook](backend/phonebook.md) for its schema and endpoints.
 
 ### Token lifetime versus conversation lifetime

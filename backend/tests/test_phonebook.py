@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 from tinydb import Query
@@ -8,7 +9,7 @@ from tinydb import Query
 from app.core.database import database
 from app.main import app
 from app.services.auth import AuthStore, get_auth_store
-from app.services.phonebook import PhonebookStore, get_phonebook_store
+from app.services.phonebook import PhonebookStore, get_phonebook_store, update_description_after_session
 
 
 class PhonebookTests(unittest.TestCase):
@@ -63,3 +64,43 @@ class PhonebookTests(unittest.TestCase):
         self.assertEqual(self.store.get("other").description, "")
         self.assertEqual(client.put(endpoint, json={"username": "other", "description": "forged"}).status_code, 422)
         self.assertEqual(client.get("/api/v1/conversation/old-call").status_code, 404)
+
+
+class DescriptionUpdateTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        path = Path(directory.name) / "db.json"
+        AuthStore(path)
+        self.store = PhonebookStore(path)
+        self.store.set_description("demo", "A teacher.")
+
+    async def test_session_details_are_merged_and_only_two_fields_are_saved(self):
+        with patch('app.services.phonebook.generate_description', new=AsyncMock(
+            return_value='A science teacher who prefers short replies.')) as generate:
+            await update_description_after_session(self.store, 'demo', ['I teach science.', 'I prefer short replies.'])
+        generate.assert_awaited_once_with('A teacher.', 'I teach science.\nI prefer short replies.')
+        self.assertEqual(PhonebookStore(self.store.path).get('demo').model_dump(), {
+            'username': 'demo', 'description': 'A science teacher who prefers short replies.'})
+        with database(self.store.path) as db:
+            self.assertNotIn('calls', db.tables())
+
+    async def test_no_speech_skips_generation(self):
+        with patch('app.services.phonebook.generate_description', new=AsyncMock()) as generate:
+            await update_description_after_session(self.store, 'demo', ['', ' '])
+        generate.assert_not_awaited()
+        self.assertEqual(self.store.get('demo').description, 'A teacher.')
+
+    async def test_provider_failure_or_empty_response_keeps_existing_description(self):
+        for result in [AsyncMock(side_effect=TimeoutError), AsyncMock(return_value='')]:
+            with patch('app.services.phonebook.generate_description', new=result):
+                await update_description_after_session(self.store, 'demo', ['I teach science.'])
+            self.assertEqual(self.store.get('demo').description, 'A teacher.')
+
+    async def test_newer_description_is_not_overwritten(self):
+        async def generate(description, statements):
+            self.store.set_description('demo', 'A physics teacher.')
+            return 'A science teacher.'
+        with patch('app.services.phonebook.generate_description', side_effect=generate):
+            await update_description_after_session(self.store, 'demo', ['I teach science.'])
+        self.assertEqual(self.store.get('demo').description, 'A physics teacher.')
