@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.api.routes.auth import CurrentUser
-from app.services.conversation import ConnectionDetails, ConversationOptions, create_connection
+from app.services.conversation import ConnectionDetails, ConversationOptions, create_connection, ensure_voice_available
 from app.services.phonebook import DescriptionUpdate, PhonebookEntry, PhonebookStore, get_phonebook_store
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
@@ -11,9 +11,10 @@ Store = Annotated[PhonebookStore, Depends(get_phonebook_store)]
 
 
 @router.post("/connect", response_model=ConnectionDetails)
-def connect(options: ConversationOptions, response: Response, user: CurrentUser) -> ConnectionDetails:
+async def connect(options: ConversationOptions, response: Response, user: CurrentUser) -> ConnectionDetails:
     try:
         details = create_connection(options, user)
+        await ensure_voice_available()
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
     except RuntimeError as error:

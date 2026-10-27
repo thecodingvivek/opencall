@@ -17,6 +17,7 @@ server = AgentServer(
     ws_url=settings.livekit_url, api_key=settings.livekit_api_key,
     api_secret=settings.livekit_api_secret.get_secret_value(),
     shutdown_process_timeout=30,
+    host="127.0.0.1", port=settings.voice_worker_port,
 )
 
 

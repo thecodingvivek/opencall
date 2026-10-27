@@ -55,7 +55,10 @@ saved description as background context. Gnani converts the reply to audio,
 which LiveKit sends back to the browser.
 
 The frontend, FastAPI backend, LiveKit server, and Python worker run as separate
-processes. They must all be running for a voice conversation.
+processes. Run `bun run dev` from the repository root or `frontend/` to start
+all four together. The launcher waits for readiness and restarts the processes
+it starts if they exit. Keep that terminal running while developing. The connect
+API checks the voice services before returning room connection details.
 
 ## Read or update the description
 

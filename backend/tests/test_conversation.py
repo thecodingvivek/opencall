@@ -3,7 +3,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import jwt
 from fastapi.testclient import TestClient
@@ -36,6 +36,9 @@ class TokenTests(unittest.TestCase):
         patcher = patch('app.services.conversation.get_settings', return_value=self.settings)
         patcher.start()
         self.addCleanup(patcher.stop)
+        readiness = patch('app.api.routes.conversation.ensure_voice_available', new=AsyncMock())
+        readiness.start()
+        self.addCleanup(readiness.stop)
 
     def test_restricted_token_and_agent_dispatch(self):
         response = self.client.post('/api/v1/conversation/connect', json={
@@ -87,6 +90,13 @@ class TokenTests(unittest.TestCase):
         response = self.client.post('/api/v1/conversation/connect', json={})
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('gnani-private', response.text)
+
+    def test_unavailable_voice_service_returns_503_instead_of_join_token(self):
+        with patch('app.api.routes.conversation.ensure_voice_available',
+                   new=AsyncMock(side_effect=RuntimeError('Voice service is unavailable'))):
+            response = self.client.post('/api/v1/conversation/connect', json={})
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn('participant_token', response.json())
 
 
 class Socket:

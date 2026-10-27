@@ -1,7 +1,9 @@
 """Shared conversation settings and restricted room-token issuance."""
 import json
+import aiohttp
 from datetime import timedelta
 from uuid import uuid4
+from urllib.parse import urlparse
 
 from livekit import api
 from pydantic import BaseModel, Field
@@ -10,6 +12,30 @@ from app.api.routes.speech import Language, TTS_VOICES
 from app.core.config import get_settings
 
 AGENT_NAME = "opencall-conversation"
+
+
+async def ensure_voice_available() -> None:
+    """Do not issue join details for unavailable local voice services."""
+    settings = get_settings()
+    try:
+        async with api.LiveKitAPI(settings.livekit_url, settings.livekit_api_key,
+            settings.livekit_api_secret.get_secret_value(), timeout=aiohttp.ClientTimeout(total=2)) as client:
+            await client.room.list_rooms(api.ListRoomsRequest())
+    except Exception:
+        raise RuntimeError("The voice server is unavailable. Run bun run dev to start OpenCall's services.") from None
+    if urlparse(settings.livekit_url).hostname in {"localhost", "127.0.0.1", "::1"}:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as client:
+                base = f"http://127.0.0.1:{settings.voice_worker_port}"
+                async with client.get(base + "/worker") as response:
+                    response.raise_for_status()
+                    worker = await response.json()
+                    if worker.get("agent_name") != AGENT_NAME:
+                        raise ValueError("Unexpected worker")
+                async with client.get(base) as response:
+                    response.raise_for_status()
+        except Exception:
+            raise RuntimeError("The voice assistant is unavailable. Run bun run dev to start OpenCall's services.") from None
 
 
 class ConversationOptions(BaseModel):

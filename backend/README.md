@@ -246,6 +246,27 @@ The agent's conversation history is managed by LiveKit, including interrupted tu
 
 ### Run locally
 
+After installing backend requirements, frontend dependencies (`cd frontend && bun install`),
+and LiveKit (`brew install livekit`), start everything from one terminal:
+
+```bash
+# From the repository root (also works from frontend/):
+bun run dev
+```
+
+This starts LiveKit, the Python 3.13 voice worker, FastAPI, and Next.js in order.
+It waits for readiness, restarts managed processes if they exit, and reuses
+services already running. Keep this terminal open; Ctrl+C stops the processes
+it started. Processes started separately remain under their original terminal.
+The worker health endpoint uses local port `8081` (`VOICE_WORKER_PORT` can override it).
+Use the default local LiveKit URL/key/secret from `.env.example` for automatic server startup.
+Provider keys must be configured in `backend/.env`.
+
+The connect API now checks LiveKit and the local worker before returning join
+details. An unavailable service returns `503`, instead of a valid-looking token
+followed by a browser connection failure. Starting FastAPI alone does not start
+the voice services. To run each process manually, use the commands below.
+
 Install [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) on macOS:
 
 ```bash
@@ -277,7 +298,7 @@ In a fourth terminal, start the frontend:
 ```bash
 cd frontend
 bun install
-bun run dev
+bun run dev:frontend
 ```
 
 Open `http://localhost:3000/dashboard`, log in, choose a language and voice, and click
