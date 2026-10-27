@@ -2,17 +2,16 @@ import { backendUrl } from "@/lib/auth";
 
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const path = (await context.params).path.join("/");
-  const allowed = request.method === "POST" ? path === "connect"
-    : path === "phonebook" || /^[a-f0-9]{32}$/.test(path);
+  const allowed = request.method === "POST" ? path === "connect" : path === "phonebook";
   if (!allowed) return Response.json({ detail: "Not found" }, { status: 404 });
-  if (request.method === "POST" && request.headers.get("origin") !== new URL(request.url).origin) {
+  if (request.method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin) {
     return Response.json({ detail: "Invalid request origin" }, { status: 403 });
   }
   try {
     const response = await fetch(`${backendUrl}/api/v1/conversation/${path}`, {
       method: request.method,
       headers: { "Content-Type": "application/json", Cookie: request.headers.get("cookie") || "" },
-      body: request.method === "POST" ? await request.text() : undefined,
+      body: request.method !== "GET" ? await request.text() : undefined,
       cache: "no-store", signal: AbortSignal.timeout(10000),
     });
     return new Response(await response.text(), {
@@ -27,3 +26,5 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
 
 export const POST = proxy;
 export const GET = proxy;
+
+export const PUT = proxy;

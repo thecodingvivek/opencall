@@ -55,19 +55,25 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(metadata['language_code'], 'te-IN')
         self.assertEqual(metadata['voice'], 'Lakshmi')
         self.assertEqual(metadata['participant_identity'], details['participant_identity'])
-        self.assertEqual(metadata['call_id'], details['call_id'])
-        self.assertEqual(self.store.call(details['call_id'])['user_id'], self.user['user_id'])
-        self.assertNotIn('previous_summary', metadata)
-        self.assertNotIn('username', metadata)
+        self.assertEqual(metadata['username'], 'demo')
+        self.assertNotIn('call_id', details)
+        self.assertNotIn('calls', self.store_tables())
         self.assertNotIn('private', response.text)
         other = self.client.post('/api/v1/conversation/connect', json={}).json()
         self.assertNotEqual(details['room_name'], other['room_name'])
+
+    def store_tables(self):
+        from app.core.database import database
+        with database(self.store.path) as db:
+            return db.tables()
 
     def test_account_is_derived_from_session_and_required(self):
         response = self.client.post('/api/v1/conversation/connect', json={
             'username': 'someone-else', 'user_id': 'forged'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.store.call(response.json()['call_id'])['user_id'], self.user['user_id'])
+        claims = jwt.decode(response.json()['participant_token'], 's' * 40, algorithms=['HS256'])
+        metadata = json.loads(claims['roomConfig']['agents'][0]['metadata'])
+        self.assertEqual(metadata['username'], 'demo')
         self.client.cookies.clear()
         self.assertEqual(self.client.post('/api/v1/conversation/connect', json={}).status_code, 401)
         self.assertEqual(self.client.get('/api/v1/conversation/phonebook').status_code, 401)

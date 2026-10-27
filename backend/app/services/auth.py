@@ -6,7 +6,6 @@ from hmac import compare_digest
 from pathlib import Path
 from secrets import token_hex, token_urlsafe
 from time import time
-from uuid import uuid4
 
 from tinydb import Query
 
@@ -27,16 +26,20 @@ class AuthStore:
                 salt = token_hex(16)
                 users.insert({
                     "username": "demo",
-                    "user_id": uuid4().hex,
-                    "phone_number": None,
                     "display_name": "Demo User",
                     "salt": salt,
                     "password_hash": self.password_hash("opencall123", salt),
                 })
-            # Backfill existing accounts without changing credentials or sessions.
+            # Keep existing logins working while returning to username-based sessions.
             for user in users.all():
-                if not user.get("user_id"):
-                    users.update({"user_id": uuid4().hex, "phone_number": None}, doc_ids=[user.doc_id])
+                if user.get("user_id"):
+                    sessions = db.table("sessions")
+                    sessions.update({"username": user["username"]}, Query().user_id == user["user_id"])
+            def simplify(record):
+                record.pop("user_id", None)
+                record.pop("phone_number", None)
+            users.update(simplify)
+            db.table("sessions").update(simplify)
 
     @staticmethod
     def password_hash(password: str, salt: str) -> str:
@@ -54,7 +57,7 @@ class AuthStore:
             sessions.remove(Query().expires_at <= time())
             token = token_urlsafe(32)
             sessions.insert({"token_hash": sha256(token.encode()).hexdigest(),
-                             "user_id": user["user_id"], "expires_at": time() + SESSION_SECONDS})
+                             "username": username, "expires_at": time() + SESSION_SECONDS})
             return token, self.public_user(user)
 
     def current_user(self, token: str) -> dict | None:
@@ -62,9 +65,7 @@ class AuthStore:
             session = db.table("sessions").get(Query().token_hash == sha256(token.encode()).hexdigest())
             if not session or session["expires_at"] <= time():
                 return None
-            # Existing username-based sessions remain valid until their normal expiry.
-            query = Query().user_id == session["user_id"] if session.get("user_id") else Query().username == session["username"]
-            user = db.table("users").get(query)
+            user = db.table("users").get(Query().username == session.get("username"))
             return self.public_user(user) if user else None
 
     def logout(self, token: str) -> None:
@@ -73,7 +74,7 @@ class AuthStore:
 
     @staticmethod
     def public_user(user: dict) -> dict:
-        return {"user_id": user["user_id"], "username": user["username"], "display_name": user["display_name"]}
+        return {"username": user["username"], "display_name": user["display_name"]}
 
 
 @lru_cache

@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 from app.api.routes.speech import Language, TTS_VOICES
 from app.core.config import get_settings
-from app.services.phonebook import PhonebookStore
 
 AGENT_NAME = "opencall-conversation"
 
@@ -19,14 +18,13 @@ class ConversationOptions(BaseModel):
 
 
 class ConnectionDetails(BaseModel):
-    call_id: str
     server_url: str
     participant_token: str
     room_name: str
     participant_identity: str
 
 
-def create_connection(options: ConversationOptions, user: dict, store: PhonebookStore) -> ConnectionDetails:
+def create_connection(options: ConversationOptions, user: dict) -> ConnectionDetails:
     settings = get_settings()
     if options.voice not in TTS_VOICES:
         raise ValueError("Choose a supported Timbre v3.0 voice.")
@@ -36,7 +34,6 @@ def create_connection(options: ConversationOptions, user: dict, store: Phonebook
         raise RuntimeError("Configure the LiveKit server credentials on the backend.")
     room_name = f"opencall-{uuid4().hex}"
     identity = f"user-{uuid4().hex}"
-    call_id = store.create_call(user["user_id"], room_name, identity)
     token = (
         api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret.get_secret_value())
         .with_identity(identity)
@@ -51,11 +48,11 @@ def create_connection(options: ConversationOptions, user: dict, store: Phonebook
             max_participants=2, empty_timeout=60, departure_timeout=20,
             agents=[api.RoomAgentDispatch(
                 agent_name=AGENT_NAME, metadata=json.dumps({
-                    **options.model_dump(), "participant_identity": identity, "call_id": call_id,
+                    **options.model_dump(), "participant_identity": identity, "username": user["username"],
                 }),
             )],
         ))
         .to_jwt()
     )
-    return ConnectionDetails(call_id=call_id, server_url=settings.livekit_url, participant_token=token,
+    return ConnectionDetails(server_url=settings.livekit_url, participant_token=token,
                              room_name=room_name, participant_identity=identity)

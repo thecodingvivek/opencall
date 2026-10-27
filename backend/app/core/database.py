@@ -28,7 +28,7 @@ def database(path: Path):
                 yield db
                 after = db.storage.read()
                 if after != before:
-                    # Commit all table updates together, including call status + memory.
+                    # Commit all table updates together.
                     temporary_path = None
                     try:
                         with NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as temporary:

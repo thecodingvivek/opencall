@@ -131,18 +131,14 @@ does not assume a permanently dedicated operating-system process for each user.
 
 LiveKit's `AgentSession` manages the active chat context and feeds it to the LLM.
 This lets later turns refer to earlier conversation in the same running session.
-The application now also persists an account phonebook in TinyDB. Login identifies
-the account; each call record binds a stable user ID to its room and participant.
-The worker loads that user's description and previous summary into the agent's
-instructions and exposes `lookup_phonebook` to refresh it during a call.
+The application stores a simple phonebook in TinyDB. Each entry contains only
+`username` and `description`. The login session identifies the username, which
+is passed to the worker in signed agent dispatch metadata. The worker loads that
+username's description before starting the assistant.
 
-When the session closes, the worker summarizes essential context with Groq and
-updates only that account's phonebook. A later room receives this concise memory;
-it does not resume the previous LiveKit session or replay the full transcript.
-Temporary transcript text is retained for retry on summary failure and cleared
-after a successful update. Provider-side retention is separate from local storage.
-See [Phonebook and call memory](backend/phonebook.md) for the current schema,
-failure behavior, and endpoints.
+Descriptions are updated explicitly through the phonebook API. There are no
+stored call records, transcripts, automatic summaries, or end-of-call updates.
+See [Phonebook](backend/phonebook.md) for its schema and endpoints.
 
 ### Token lifetime versus conversation lifetime
 

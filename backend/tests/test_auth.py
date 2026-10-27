@@ -41,7 +41,6 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["username"], "demo")
         self.assertEqual(response.json()["display_name"], "Demo User")
-        self.assertTrue(response.json()["user_id"])
         self.assertIn("HttpOnly", response.headers["set-cookie"])
         self.assertIn("SameSite=lax", response.headers["set-cookie"])
         self.assertEqual(response.headers["cache-control"], "no-store")
