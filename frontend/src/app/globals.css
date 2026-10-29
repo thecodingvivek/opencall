@@ -23,3 +23,8 @@ body {
   font-family: var(--font-instrument-serif), Georgia, serif;
   font-style: italic;
 }
+
+/* Instrument Serif has one weight; a fine stroke adds subtle emphasis. */
+.instrument-emphasis {
+  -webkit-text-stroke: 0.3px currentColor;
+}
