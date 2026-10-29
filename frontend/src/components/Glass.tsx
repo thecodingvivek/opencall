@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef } from "react";
 
 export type GlassPalette = { name: string; top: string; bottom: string; accent: string };
 
@@ -17,15 +17,15 @@ export const defaultGlassPalettes: GlassPalette[] = [
 type GlassProps = {
   palettes?: GlassPalette[];
   initialPalette?: string;
+  /** Custom liquid colors, as six-digit hex values. */
+  colors?: Pick<GlassPalette, "top" | "bottom" | "accent">;
   /** Set to false to remove the microphone controls and audio processing. */
   audioEnabled?: boolean;
 };
 
-export default function Glass({ palettes = defaultGlassPalettes, initialPalette, audioEnabled = false }: GlassProps) {
+export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false }: GlassProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
-  const swatchesRef = useRef<HTMLDivElement>(null);
-  const nameRef = useRef<HTMLParagraphElement>(null);
   const microphoneRef = useRef<HTMLButtonElement>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
   const palettesRef = useRef(palettes);
@@ -284,17 +284,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
       const gradientAccent = gl.getUniformLocation(program, 'gradientAccent');
       const palettes = palettesRef.current;
       const rgb = (hex: string) => [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255);
-      const swatches = swatchesRef.current!;
-      swatches.querySelectorAll<HTMLButtonElement>("button").forEach((button, index) => {
-        const palette = palettes[index];
-        button.addEventListener("click", () => {
-          swatches.querySelectorAll("button").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
-          nameRef.current!.textContent = palette.name;
-          canvas.setAttribute("aria-label", `A glass sphere containing animated liquid with the ${palette.name} gradient`);
-          gl.uniform3fv(gradientTop, rgb(palette.top)); gl.uniform3fv(gradientBottom, rgb(palette.bottom)); gl.uniform3fv(gradientAccent, rgb(palette.accent)); schedule();
-        });
-      });
-      const initial = palettes.find(p => p.name === initialPalette) ?? palettes[0];
+      const initial = colors ?? palettes.find(p => p.name === initialPalette) ?? palettes[0];
       gl.uniform3fv(gradientTop, rgb(initial.top));
       gl.uniform3fv(gradientBottom, rgb(initial.bottom));
       gl.uniform3fv(gradientAccent, rgb(initial.accent));
@@ -424,14 +414,9 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
     }
   
     return () => { dispose(); };
-  }, [audioEnabled, initialPalette, palettes]);
-  const selected = palettes.find(p => p.name === initialPalette)?.name ?? palettes[0]?.name ?? "Lagoon";
+  }, [audioEnabled, initialPalette, palettes, colors]);
   return <main className="glass-scene">
     <canvas ref={canvasRef} id="glass" role="img" aria-label="A glass sphere containing animated liquid with sound waves" />
-    <section className="glass-palette" aria-label="Liquid gradient textures">
-      <div className="glass-swatches" role="group" aria-label="Choose a gradient">{(palettes.length ? palettes : defaultGlassPalettes).map((palette, i) => <button key={palette.name} type="button" className="glass-swatch" title={palette.name} aria-label={`${palette.name} gradient`} aria-pressed={palette.name === selected || (!initialPalette && i === 0)} style={{ "--gradient": `radial-gradient(ellipse at 20% 15%, ${palette.accent}, transparent 65%), linear-gradient(145deg, ${palette.top}, ${palette.bottom})` } as CSSProperties} />)}</div>
-      <p ref={nameRef} id="palette-name" aria-live="polite">{selected}</p>
-    </section>
     <div className="glass-controls" hidden={!audioEnabled} style={{ display: audioEnabled ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
     <p ref={errorRef} id="error" hidden />
     <style jsx>{`
@@ -440,16 +425,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
       .glass-controls{position:absolute;bottom:max(28px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:10px;width:min(90vw,420px)}
       button{font:13px system-ui;color:#35544f;background:#ffffff80;border:1px solid #ffffffb0;border-radius:30px;padding:12px 22px;cursor:pointer;backdrop-filter:blur(12px)}
       button:hover{background:#ffffffc0} button:focus-visible{outline:2px solid #408f85;outline-offset:4px} button:disabled{opacity:.6;cursor:wait}
-      .glass-palette{position:absolute;top:calc(50% + min(20vw,20svh) + 20px);left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:14px;width:max-content;max-width:94vw}
-      .glass-swatches{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #ffffff90;border-radius:999px;background:#ffffff40;backdrop-filter:blur(12px)}
-      .glass-swatch{position:relative;flex:0 0 auto;width:clamp(32px,9vw,44px);height:clamp(32px,9vw,44px);padding:0;appearance:none;border:0;border-radius:50%;background:transparent;backdrop-filter:none;-webkit-tap-highlight-color:transparent}
-      .glass-swatch:before{content:"";position:absolute;inset:5px;border-radius:50%;clip-path:circle(50%);background:var(--gradient);box-shadow:inset 0 0 0 1px #ffffff50}
-      .glass-swatch:after{content:"";position:absolute;inset:0;border:1.5px solid #526c66;border-radius:50%;opacity:0;transition:opacity 160ms}
-      .glass-swatch:hover:after{opacity:.3}.glass-swatch[aria-pressed=true]:after{opacity:1}
-      #palette-name,#status{margin:0;text-align:center} #palette-name{letter-spacing:.04em}
       #error:not([hidden]){position:absolute;inset:0;margin:0;display:grid;place-content:center;text-align:center;padding:24px;font-size:16px;color:#425250}
-      @media(max-height:600px){.glass-palette{top:calc(50% + 18svh + 8px);gap:8px}.glass-swatch{width:32px;height:32px}.glass-controls{bottom:10px;gap:4px}}
-      @media(prefers-reduced-motion:reduce){.glass-swatch:after{transition:none}}
     `}</style>
   </main>;
 }
