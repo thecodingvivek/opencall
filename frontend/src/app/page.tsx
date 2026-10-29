@@ -1,4 +1,5 @@
 import Glass from "../components/Glass";
+import { instrumentSerif } from "./fonts";
 
 export default function Home() {
   return (
@@ -9,9 +10,9 @@ export default function Home() {
         </h1>
         <Glass size={240} audioEnabled={false} followCursor={false} />
         <p className="whitespace-nowrap text-4xl tracking-[-0.03em] md:text-5xl">
-          <span className="font-instrument-serif">harness</span>{" "}
+          <span className={instrumentSerif.className} style={instrumentSerif.style}>harness</span>{" "}
           <span className="font-sans text-[0.65em] tracking-normal">and</span>{" "}
-          <span className="font-instrument-serif">harvest</span>
+          <span className={instrumentSerif.className} style={instrumentSerif.style}>harvest</span>
         </p>
       </div>
     </main>
