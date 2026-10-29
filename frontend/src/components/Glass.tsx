@@ -23,9 +23,11 @@ type GlassProps = {
   audioEnabled?: boolean;
   /** Set to false to keep the camera fixed when the cursor moves. */
   followCursor?: boolean;
+  /** Orb and canvas diameter in CSS pixels. */
+  size?: number;
 };
 
-export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false, followCursor = true }: GlassProps) {
+export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false, followCursor = true, size = 320 }: GlassProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const microphoneRef = useRef<HTMLButtonElement>(null);
@@ -39,7 +41,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
     const canvas = canvasRef.current!;
     const error = errorRef.current!;
     if (!canvas || !error) return;
-    const gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false });
+    const gl = canvas.getContext('webgl', { alpha: true, antialias: false, depth: false });
 
     function fail(message: string) {
       error.textContent = message;
@@ -179,14 +181,15 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
         }
 
         vec3 trace(vec2 pixel) {
-          vec2 uv = (pixel * 2.0 - resolution) / min(resolution.x, resolution.y);
+          // Fit the sphere closely inside its own square canvas.
+          vec2 uv = (pixel * 2.0 - resolution) / min(resolution.x, resolution.y) * 0.35;
           vec3 camera = vec3(pointer.x * 0.32, 0.72 + pointer.y * 0.2, 4.8);
           vec3 forward = normalize(-camera);
           vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
           vec3 up = cross(right, forward);
           vec3 direction = normalize(forward * 1.6 + uv.x * right + uv.y * up);
           float distance = sphere(camera, direction);
-          if (distance < 0.0) return environment(camera, direction);
+          if (distance < 0.0) discard;
 
           vec3 entry = camera + direction * distance;
           vec3 normal = normalize(entry);
@@ -379,6 +382,8 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
           canvas.height = height;
         }
         gl.viewport(0, 0, width, height);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.uniform2f(resolution, width, height);
         gl.uniform2f(pointer, reducedMotion.matches || !followCursor ? 0 : pointerX, reducedMotion.matches || !followCursor ? 0 : pointerY);
         gl.uniform1f(timeUniform, animationTime);
@@ -417,18 +422,18 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
     }
   
     return () => { dispose(); };
-  }, [audioEnabled, initialPalette, palettes, colors, followCursor]);
-  return <main className="glass-scene">
+  }, [audioEnabled, initialPalette, palettes, colors, followCursor, size]);
+  return <div className="glass-scene" style={{ width: Number.isFinite(size) ? Math.max(1, size) : 320 }}>
     <canvas ref={canvasRef} id="glass" role="img" aria-label="A glass sphere containing animated liquid with sound waves" />
     <div className="glass-controls" hidden={!audioEnabled} style={{ display: audioEnabled ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
     <p ref={errorRef} id="error" hidden />
     <style jsx>{`
-      .glass-scene{position:fixed;inset:0;overflow:hidden;background:#e6e8e5;color:#506864;font:12px system-ui;z-index:0}
-      canvas{display:block;width:100%;height:100%;height:100svh}
+      .glass-scene{position:relative;max-width:100%;aspect-ratio:1;flex-shrink:0;color:#506864;font:12px system-ui}
+      canvas{display:block;width:100%;height:100%;aspect-ratio:1}
       .glass-controls{position:absolute;bottom:max(28px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:10px;width:min(90vw,420px)}
       button{font:13px system-ui;color:#35544f;background:#ffffff80;border:1px solid #ffffffb0;border-radius:30px;padding:12px 22px;cursor:pointer;backdrop-filter:blur(12px)}
       button:hover{background:#ffffffc0} button:focus-visible{outline:2px solid #408f85;outline-offset:4px} button:disabled{opacity:.6;cursor:wait}
       #error:not([hidden]){position:absolute;inset:0;margin:0;display:grid;place-content:center;text-align:center;padding:24px;font-size:16px;color:#425250}
     `}</style>
-  </main>;
+  </div>;
 }
