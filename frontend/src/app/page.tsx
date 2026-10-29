@@ -1,5 +1,9 @@
 import Glass from "../components/Glass";
 
 export default function Home() {
-  return <Glass />;
+  return (
+    <div className="min-h-screen w-full bg-white">
+      <Glass audioEnabled={false} />
+    </div>
+  );
 }
