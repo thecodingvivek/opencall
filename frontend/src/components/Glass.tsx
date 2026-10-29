@@ -21,9 +21,11 @@ type GlassProps = {
   colors?: Pick<GlassPalette, "top" | "bottom" | "accent">;
   /** Set to false to remove the microphone controls and audio processing. */
   audioEnabled?: boolean;
+  /** Set to false to keep the camera fixed when the cursor moves. */
+  followCursor?: boolean;
 };
 
-export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false }: GlassProps) {
+export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false, followCursor = true }: GlassProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const microphoneRef = useRef<HTMLButtonElement>(null);
@@ -378,7 +380,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
         }
         gl.viewport(0, 0, width, height);
         gl.uniform2f(resolution, width, height);
-        gl.uniform2f(pointer, reducedMotion.matches ? 0 : pointerX, reducedMotion.matches ? 0 : pointerY);
+        gl.uniform2f(pointer, reducedMotion.matches || !followCursor ? 0 : pointerX, reducedMotion.matches || !followCursor ? 0 : pointerY);
         gl.uniform1f(timeUniform, animationTime);
         gl.uniform3fv(bandsUniform, reducedMotion.matches ? [0, 0, 0] : levels);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -391,6 +393,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
         else { previousTime = performance.now(); schedule(); }
       });
       canvas.addEventListener('pointermove', event => {
+        if (!followCursor) return;
         pointerX = event.clientX / canvas.clientWidth * 2 - 1;
         pointerY = 1 - event.clientY / canvas.clientHeight * 2;
         schedule();
@@ -414,7 +417,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
     }
   
     return () => { dispose(); };
-  }, [audioEnabled, initialPalette, palettes, colors]);
+  }, [audioEnabled, initialPalette, palettes, colors, followCursor]);
   return <main className="glass-scene">
     <canvas ref={canvasRef} id="glass" role="img" aria-label="A glass sphere containing animated liquid with sound waves" />
     <div className="glass-controls" hidden={!audioEnabled} style={{ display: audioEnabled ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
