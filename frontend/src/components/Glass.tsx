@@ -180,7 +180,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
           return color;
         }
 
-        vec3 trace(vec2 pixel) {
+        vec4 trace(vec2 pixel) {
           // Fit the sphere closely inside its own square canvas.
           vec2 uv = (pixel * 2.0 - resolution) / min(resolution.x, resolution.y) * 0.35;
           vec3 camera = vec3(pointer.x * 0.32, 0.72 + pointer.y * 0.2, 4.8);
@@ -189,7 +189,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
           vec3 up = cross(right, forward);
           vec3 direction = normalize(forward * 1.6 + uv.x * right + uv.y * up);
           float distance = sphere(camera, direction);
-          if (distance < 0.0) discard;
+          if (distance < 0.0) return vec4(0.0);
 
           vec3 entry = camera + direction * distance;
           vec3 normal = normalize(entry);
@@ -199,12 +199,13 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
           float discriminant = b * b - dot(entry, entry) + innerRadius * innerRadius;
           float f0 = pow((1.0 - ior) / (1.0 + ior), 2.0);
           float fresnel = f0 + (1.0 - f0) * pow(1.0 - max(dot(-direction, normal), 0.0), 5.0);
-          if (discriminant <= 0.0) return reflection;
+          float glassAlpha = 0.025 + fresnel * 0.38;
+          if (discriminant <= 0.0) return vec4(reflection, glassAlpha);
 
           // Enter the hollow cavity through a thin glass wall.
           vec3 origin = entry + glassRay * (-b - sqrt(discriminant));
           vec3 ray = refract(glassRay, normalize(origin), ior);
-          if (dot(ray, ray) < 0.01) return reflection;
+          if (dot(ray, ray) < 0.01) return vec4(reflection, glassAlpha);
           float liquidDistance = 0.0;
           vec3 liquidSurface = vec3(0.0);
           float surfaceReflection = 0.0;
@@ -245,16 +246,21 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
           vec3 transmission = environment(exitPoint, outgoing);
           transmission = absorbLiquid(transmission, liquidDistance, liquidSurface);
           transmission = mix(transmission, surfaceColor, surfaceReflection);
-          return mix(transmission, reflection, fresnel);
+          // Empty glass lets the actual page background show through.
+          return vec4(mix(transmission, reflection, fresnel),
+            liquidDistance > 0.0 ? 1.0 : glassAlpha);
+        }
+
+        vec4 samplePixel(vec2 pixel) {
+          vec4 sampleColor = trace(pixel);
+          vec3 mapped = sampleColor.rgb / (sampleColor.rgb + vec3(0.28));
+          // The WebGL canvas composites premultiplied color onto the page.
+          return vec4(pow(mapped, vec3(1.0 / 2.2)) * sampleColor.a, sampleColor.a);
         }
 
         void main() {
-          // Two subpixel samples smooth the animated surface at modest cost.
-          vec3 color = trace(gl_FragCoord.xy + vec2(-0.25, -0.25));
-          color += trace(gl_FragCoord.xy + vec2(0.25, 0.25));
-          color *= 0.5;
-          color = color / (color + vec3(0.28));
-          gl_FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
+          gl_FragColor = 0.5 * (samplePixel(gl_FragCoord.xy + vec2(-0.25))
+            + samplePixel(gl_FragCoord.xy + vec2(0.25)));
         }
       `;
       function compile(type: number, source: string) {
