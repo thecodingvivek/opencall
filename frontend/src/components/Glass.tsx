@@ -428,8 +428,8 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
     <div className="glass-controls" hidden={!audioEnabled} style={{ display: audioEnabled ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
     <p ref={errorRef} id="error" hidden />
     <style jsx>{`
-      .glass-scene{position:relative;max-width:100%;aspect-ratio:1;flex-shrink:0;color:#506864;font:12px system-ui}
-      canvas{display:block;width:100%;height:100%;aspect-ratio:1}
+      .glass-scene{position:relative;max-width:100%;aspect-ratio:1;flex-shrink:0;background:transparent;color:#506864;font:12px system-ui}
+      canvas{display:block;width:100%;height:100%;aspect-ratio:1;background:transparent}
       .glass-controls{position:absolute;bottom:max(28px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:10px;width:min(90vw,420px)}
       button{font:13px system-ui;color:#35544f;background:#ffffff80;border:1px solid #ffffffb0;border-radius:30px;padding:12px 22px;cursor:pointer;backdrop-filter:blur(12px)}
       button:hover{background:#ffffffc0} button:focus-visible{outline:2px solid #408f85;outline-offset:4px} button:disabled{opacity:.6;cursor:wait}
