@@ -8,7 +8,7 @@ export default function GetStarted() {
     <main className="flex min-h-screen items-center justify-center bg-white px-6">
       <CuelumeSounds />
       <div className="flex w-full max-w-xs flex-col items-center gap-4">
-        <label htmlFor="mobile" className="sr-only">Mobile number</label>
+        <label htmlFor="mobile" className="w-full text-sm text-[#343433]">enter number you want to call with</label>
         <Input
           id="mobile"
           name="mobile"
@@ -20,7 +20,7 @@ export default function GetStarted() {
         <Button type="button" disabled variant="secondary" className="h-10 w-full rounded-full bg-[#f3f3f3] text-[#343433]">
           CONTINUE
         </Button>
-        <a href="/login" data-cuelume-tap="" className={cn(buttonVariants({ variant: "secondary" }), "h-10 w-full rounded-full bg-[#f3f3f3] text-[#343433]")}>
+        <a href="/try" data-cuelume-tap="" className={cn(buttonVariants({ variant: "secondary" }), "h-10 w-full rounded-full bg-[#f3f3f3] text-[#343433]")}>
           try without mobile
         </a>
       </div>
