@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useEffect, useRef, type CSSProperties } from "react";
 
 export type GlassPalette = { name: string; top: string; bottom: string; accent: string };
@@ -13,9 +14,14 @@ export const defaultGlassPalettes: GlassPalette[] = [
   { name: "Arctic", top: "#91dfe8", bottom: "#3158b3", accent: "#e4e6fa" },
 ];
 
-type GlassProps = { palettes?: GlassPalette[]; initialPalette?: string };
+type GlassProps = {
+  palettes?: GlassPalette[];
+  initialPalette?: string;
+  /** Set to false to remove the microphone controls and audio processing. */
+  audioEnabled?: boolean;
+};
 
-export default function Glass({ palettes = defaultGlassPalettes, initialPalette }: GlassProps) {
+export default function Glass({ palettes = defaultGlassPalettes, initialPalette, audioEnabled = false }: GlassProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const swatchesRef = useRef<HTMLDivElement>(null);
@@ -26,17 +32,19 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
   palettesRef.current = palettes.length ? palettes : defaultGlassPalettes;
   useEffect(() => {
 
-    'use strict';
-    const canvas = canvasRef.current;
-    const error = errorRef.current;
+    let dispose = () => {};
+    const events = new AbortController();
+    const canvas = canvasRef.current!;
+    const error = errorRef.current!;
+    if (!canvas || !error) return;
     const gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false });
 
-    function fail(message) {
+    function fail(message: string) {
       error.textContent = message;
       error.hidden = false;
     }
 
-    function start() {
+    function start(gl: WebGLRenderingContext) {
       // Trace rays through an actual 3D sphere: entry refraction, exit
       // refraction, Fresnel reflections, and absorption through the glass.
       const vertexSource = `
@@ -244,20 +252,22 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
           gl_FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
         }
       `;
-      function compile(type, source) {
+      function compile(type: number, source: string) {
         const shader = gl.createShader(type);
+        if (!shader) throw new Error("Cannot create shader");
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-          throw new Error(gl.getShaderInfoLog(shader));
+          throw new Error(gl.getShaderInfoLog(shader) ?? "Shader compilation failed");
         }
         return shader;
       }
       const program = gl.createProgram();
+      if (!program) throw new Error("Cannot create program");
       gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexSource));
       gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
       gl.linkProgram(program);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? "Program link failed");
       gl.useProgram(program);
       const buffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -273,8 +283,8 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
       const gradientBottom = gl.getUniformLocation(program, 'gradientBottom');
       const gradientAccent = gl.getUniformLocation(program, 'gradientAccent');
       const palettes = palettesRef.current;
-      const rgb = hex => [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255);
-      const swatches = swatchesRef.current;
+      const rgb = (hex: string) => [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255);
+      const swatches = swatchesRef.current!;
       swatches.querySelectorAll<HTMLButtonElement>("button").forEach((button, index) => {
         const palette = palettes[index];
         button.addEventListener("click", () => {
@@ -288,12 +298,12 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
       gl.uniform3fv(gradientTop, rgb(initial.top));
       gl.uniform3fv(gradientBottom, rgb(initial.bottom));
       gl.uniform3fv(gradientAccent, rgb(initial.accent));
-      const microphone = microphoneRef.current;
-      const status = statusRef.current;
-      let audioContext = null;
-      let stream = null;
-      let analyser = null;
-      let frequencies = null;
+      const microphone = microphoneRef.current!;
+      const status = statusRef.current!;
+      let audioContext: AudioContext | null = null;
+      let stream: MediaStream | null = null;
+      let analyser: AnalyserNode | null = null;
+      let frequencies: Uint8Array<ArrayBuffer> | null = null;
       let contextLost = false;
       const levels = [0.45, 0.3, 0.2];
       let previousTime = performance.now();
@@ -315,6 +325,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
         status.textContent = 'Waiting for microphone permission…';
         try {
           if (!navigator.mediaDevices?.getUserMedia) throw new Error('unavailable');
+          if (!audioEnabled) return;
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           audioContext = new AudioContext();
           await audioContext.resume();
@@ -329,7 +340,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
           status.textContent = 'Listening · audio stays on this device';
         } catch (cause) {
           stopMicrophone();
-          status.textContent = cause.name === 'NotAllowedError'
+          status.textContent = cause instanceof Error && cause.name === 'NotAllowedError'
             ? 'Microphone permission denied · preview continues'
             : 'Microphone unavailable · use localhost or HTTPS';
         } finally { microphone.disabled = false; }
@@ -347,15 +358,15 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
         if (!reducedMotion.matches) animationTime += delta;
         // With no excitation, every wave relaxes toward a perfectly round surface.
         const targets = [0, 0, 0];
-        if (analyser) {
+        if (analyser && frequencies && audioContext) {
           analyser.getByteFrequencyData(frequencies);
           const ranges = [[40, 250], [250, 2000], [2000, 8000]];
           ranges.forEach(([low, high], band) => {
-            const binHz = audioContext.sampleRate / analyser.fftSize;
+            const binHz = audioContext!.sampleRate / analyser!.fftSize;
             const first = Math.max(1, Math.floor(low / binHz));
-            const last = Math.min(frequencies.length - 1, Math.ceil(high / binHz));
+            const last = Math.min(frequencies!.length - 1, Math.ceil(high / binHz));
             let energy = 0;
-            for (let i = first; i <= last; i++) energy += (frequencies[i] / 255) ** 2;
+            for (let i = first; i <= last; i++) energy += (frequencies![i] / 255) ** 2;
             const amplitude = Math.sqrt(energy / Math.max(1, last - first + 1));
             // Gate low-level microphone noise rather than maintaining a ripple floor.
             targets[band] = Math.min(1.5, Math.max(0, amplitude - 0.045) * 3.1);
@@ -379,7 +390,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
         gl.uniform2f(resolution, width, height);
         gl.uniform2f(pointer, reducedMotion.matches ? 0 : pointerX, reducedMotion.matches ? 0 : pointerY);
         gl.uniform1f(timeUniform, animationTime);
-        gl.uniform3f(bandsUniform, ...(reducedMotion.matches ? [0, 0, 0] : levels));
+        gl.uniform3fv(bandsUniform, reducedMotion.matches ? [0, 0, 0] : levels);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         if (!reducedMotion.matches) schedule();
       }
@@ -403,20 +414,17 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
         stopMicrophone();
         fail('The 3D canvas was interrupted. Reload this page to restore it.');
       });
+      dispose = () => { contextLost = true; cancelAnimationFrame(frame); stopMicrophone(); events.abort(); gl.deleteBuffer(buffer); gl.deleteProgram(program); };
       draw();
     }
     if (!gl) fail('This browser does not support WebGL. Open this page in a browser with hardware acceleration enabled.');
     else {
-      try { start(); }
+      try { start(gl); }
       catch (cause) { console.error(cause); fail('The 3D canvas could not start. Please try another browser.'); }
     }
   
-    return () => {
-      window.dispatchEvent(new Event("pagehide"));
-      cancelAnimationFrame(0);
-      if (canvas) canvas.replaceWith(canvas.cloneNode(false));
-    };
-  }, []);
+    return () => { dispose(); };
+  }, [audioEnabled, initialPalette, palettes]);
   const selected = palettes.find(p => p.name === initialPalette)?.name ?? palettes[0]?.name ?? "Lagoon";
   return <main className="glass-scene">
     <canvas ref={canvasRef} id="glass" role="img" aria-label="A glass sphere containing animated liquid with sound waves" />
@@ -424,7 +432,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette 
       <div className="glass-swatches" role="group" aria-label="Choose a gradient">{(palettes.length ? palettes : defaultGlassPalettes).map((palette, i) => <button key={palette.name} type="button" className="glass-swatch" title={palette.name} aria-label={`${palette.name} gradient`} aria-pressed={palette.name === selected || (!initialPalette && i === 0)} style={{ "--gradient": `radial-gradient(ellipse at 20% 15%, ${palette.accent}, transparent 65%), linear-gradient(145deg, ${palette.top}, ${palette.bottom})` } as CSSProperties} />)}</div>
       <p ref={nameRef} id="palette-name" aria-live="polite">{selected}</p>
     </section>
-    <div className="glass-controls"><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
+    <div className="glass-controls" hidden={!audioEnabled} style={{ display: audioEnabled ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
     <p ref={errorRef} id="error" hidden />
     <style jsx>{`
       .glass-scene{position:fixed;inset:0;overflow:hidden;background:#e6e8e5;color:#506864;font:12px system-ui;z-index:0}
