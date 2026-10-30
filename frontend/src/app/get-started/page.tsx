@@ -5,8 +5,12 @@ import { cn } from "@/lib/utils";
 
 export default function GetStarted() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-6">
+    <main className="relative flex min-h-screen items-center justify-center bg-white px-6">
       <CuelumeSounds />
+      <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
+        <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
+        <a href="/" className="home-pill home-pill-quiet nav-back" data-cuelume-tap="">Back</a>
+      </nav>
       <div className="flex w-full max-w-xs flex-col items-center gap-4">
         <label htmlFor="mobile" className="w-full text-sm text-[#343433]">enter number you want to call with</label>
         <Input
