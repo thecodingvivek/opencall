@@ -7,7 +7,7 @@ import { Phone, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Conversation } from "./Conversation";
 import { Orb } from "./Orb";
-import { Phonebook } from "./Phonebook";
+import { Phonebook, type PhonebookState } from "./Phonebook";
 
 type Status = "idle" | "connecting" | "active";
 
@@ -22,11 +22,36 @@ export function TryCall() {
   const [room, setRoom] = useState<Room | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState("");
+  const [phonebook, setPhonebook] = useState<PhonebookState>({ status: "loading" });
   const active = useRef<Room | null>(null);
   const request = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout>;
+    async function refresh() {
+      try {
+        const response = await fetch("/api/conversation/phonebook", { cache: "no-store" });
+        if (cancelled) return;
+        if (response.status === 401) setPhonebook({ status: "guest" });
+        else if (!response.ok) setPhonebook({ status: "error" });
+        else {
+          const data = await response.json();
+          if (!cancelled) setPhonebook(typeof data.username === "string" && typeof data.description === "string"
+            ? { status: "ready", username: data.username, description: data.description } : { status: "error" });
+        }
+      } catch {
+        if (!cancelled) setPhonebook({ status: "error" });
+      } finally {
+        if (!cancelled) timeout = setTimeout(refresh, 3000);
+      }
+    }
+    void refresh();
+    return () => { cancelled = true; clearTimeout(timeout); };
+  }, []);
 
   function end() {
     generation.current++;
@@ -64,7 +89,8 @@ export function TryCall() {
     let next: Room | null = null;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone access requires localhost or HTTPS.");
-      const response = await fetch("/api/conversation/guest-connect", {
+      if (phonebook.status === "loading" || phonebook.status === "error") throw new Error("Phonebook is unavailable. Please try again.");
+      const response = await fetch(phonebook.status === "ready" ? "/api/conversation/connect" : "/api/conversation/guest-connect", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language_code: "en-IN", voice: "Shivani" }), signal: controller.signal,
       });
@@ -108,9 +134,9 @@ export function TryCall() {
 
   return (
     <main className="grid min-h-screen grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] bg-white">
-      <Phonebook />
+      <Phonebook phonebook={phonebook} />
       <section aria-label="Call" className="relative flex items-center justify-center">
-        <Orb audioStream={audioStream} />
+        <Orb audioStream={status === "active" ? audioStream : null} />
         {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={() => { if (timer.current) clearTimeout(timer.current); setStatus("active"); }} /></RoomContext.Provider>}
         <div className="absolute inset-x-0 bottom-10 flex flex-col items-center gap-3">
           <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : status === "active" ? "call-ending" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? end : start}>

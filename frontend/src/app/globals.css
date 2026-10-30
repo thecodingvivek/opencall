@@ -226,8 +226,10 @@ body {
 
 .call-pill.call-connecting { opacity: 1; color: #666; cursor: wait; }
 .call-pill.call-connecting::before { background: #e5e5e5; }
+.call-pill.call-ending { background: #dc2626; color: #fff; }
 .call-pill.call-ending::before { background-color: #dc2626; }
 @media (hover: hover) and (pointer: fine) {
+  .call-pill.call-ending:hover { background: #b91c1c; }
   .call-pill.call-ending:hover::before { background-color: #b91c1c; }
 }
 .typing-dots { display: inline-flex; align-items: center; gap: 3px; height: 16px; }
