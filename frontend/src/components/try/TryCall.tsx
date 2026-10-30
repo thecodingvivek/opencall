@@ -9,6 +9,7 @@ import { Conversation } from "./Conversation";
 import { Orb } from "./Orb";
 import { Phonebook, type PhonebookState } from "./Phonebook";
 import { PhoneScreen } from "./PhoneScreen";
+import { voices } from "./voices";
 import FooterGradient from "../FooterGradient";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
@@ -25,6 +26,7 @@ function AgentAudio({ onSpeaking, onTrack }: { onSpeaking: () => void; onTrack: 
 export function TryCall() {
   const reducedMotion = useReducedMotion();
   const [status, setStatus] = useState<Status>("idle");
+  const [voice, setVoice] = useState("Shivani");
   const [room, setRoom] = useState<Room | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [agentTrack, setAgentTrack] = useState<MediaStreamTrack | null>(null);
@@ -113,7 +115,7 @@ export function TryCall() {
       if (phonebook.status !== "ready") throw new Error("Phonebook is unavailable. Please try again.");
       const response = await fetch("/api/conversation/connect", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language_code: "en-IN", voice: "Shivani" }), signal: controller.signal,
+        body: JSON.stringify({ language_code: "en-IN", voice }), signal: controller.signal,
       });
       const details = await response.json();
       if (!response.ok) throw new Error(typeof details.detail === "string" ? details.detail : "Could not start the call.");
@@ -170,7 +172,13 @@ export function TryCall() {
       </nav>
       <Phonebook phonebook={phonebook} />
       <section aria-label="Call" className="relative flex items-center justify-center">
-        <Orb audioStream={status === "active" ? orbStream : null} active={status === "active"} />
+        <label className="absolute bottom-[calc(50%+105px)] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 text-xs font-medium text-[#777]">
+          Voice
+          <select aria-label="Agent voice" value={voice} onChange={event => setVoice(event.target.value)} disabled={status !== "idle"} className="rounded-full border border-[#e2e2e2] bg-white px-4 py-2 text-sm text-[#343433] outline-offset-2 disabled:opacity-50">
+            {voices.map(option => <option key={option.name} value={option.name}>{option.name}</option>)}
+          </select>
+        </label>
+        <Orb audioStream={status === "active" ? orbStream : null} active={status === "active"} colors={(voices.find(option => option.name === voice) ?? voices[0]).colors} />
         {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={onSpeaking} onTrack={setAgentTrack} /></RoomContext.Provider>}
         <div className="absolute inset-x-0 bottom-10 z-20 flex flex-col items-center gap-3">
           <AnimatePresence mode="wait" initial={false}>

@@ -1,4 +1,4 @@
-import Glass from "../Glass";
+import Glass, { type GlassPalette } from "../Glass";
 
 const offsets = [10, 35, 60, 100, 125, 150];
 const pulseColors = ["#00a884", "#00a4d6", "#6657e8", "#db4d94", "#e77b24", "#40a84e"];
@@ -19,10 +19,10 @@ function FlowLines({ side, active }: { side: "left" | "right"; active: boolean }
   );
 }
 
-export function Orb({ audioStream, active }: { audioStream: MediaStream | null; active: boolean }) {
+export function Orb({ audioStream, active, colors }: { audioStream: MediaStream | null; active: boolean; colors: Pick<GlassPalette, "top" | "bottom" | "accent"> }) {
   return <>
     <FlowLines side="left" active={active} />
-    <Glass size={160} audioEnabled={!!audioStream} audioStream={audioStream} followCursor={false} />
+    <Glass size={160} colors={colors} audioEnabled={!!audioStream} audioStream={audioStream} followCursor={false} />
     <FlowLines side="right" active={active} />
   </>;
 }
