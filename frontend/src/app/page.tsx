@@ -1,12 +1,14 @@
 import Glass from "../components/Glass";
 import CuelumeSounds from "../components/CuelumeSounds";
+import FooterGradient from "../components/FooterGradient";
 import { instrumentSerif } from "./fonts";
 
 export default function Home() {
   return (
     <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white px-6 py-12">
       <CuelumeSounds />
-      <div className="relative z-10 flex flex-col items-center gap-7">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: "linear-gradient(#d8d8d8 1px, transparent 1px), linear-gradient(90deg, #d8d8d8 1px, transparent 1px)", backgroundSize: "64px 64px", opacity: 0.22, maskImage: "radial-gradient(ellipse 75% 65% at center, transparent 15%, black 100%)", WebkitMaskImage: "radial-gradient(ellipse 75% 65% at center, transparent 15%, black 100%)" }} />
+      <div className="relative z-10 flex -translate-y-[clamp(2rem,8vh,6rem)] flex-col items-center gap-7">
        <div className="flex flex-wrap items-center justify-center gap-3">
         <span className="font-sans text-[36px] font-normal tracking-[-0.06em]">
           
@@ -26,11 +28,7 @@ export default function Home() {
          <a href="#idea" className="home-pill home-pill-quiet" data-cuelume-tap="">SEE THE IDEA</a>
        </div>
       </div>
-      <footer aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-1/2 overflow-hidden" style={{ aspectRatio: "1920 / 403" }}>
-        {/* The SVG includes the blurred edges surrounding the Figma frame. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/footer-figma.svg" alt="" className="absolute max-w-none" style={{ left: "-2.32%", top: "-8.69%", width: "104.64%", height: "117.38%" }} />
-      </footer>
+      <FooterGradient playIntro />
     </main>
   );
 }
