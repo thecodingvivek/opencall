@@ -162,7 +162,7 @@ export function TryCall() {
           {error && <p role="alert" className="w-64 text-center text-sm text-red-700">{error}</p>}
         </div>
       </section>
-      <Conversation />
+      {room ? <RoomContext.Provider value={room}><Conversation connected /></RoomContext.Provider> : <Conversation connected={false} />}
     </main>
   );
 }

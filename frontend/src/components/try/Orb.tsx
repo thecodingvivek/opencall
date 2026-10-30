@@ -10,9 +10,9 @@ function FlowLines({ side, active }: { side: "left" | "right"; active: boolean }
         const path = side === "left" ? `M0 ${y} C60 ${y} 60 80 120 80` : `M0 80 C60 80 60 ${y} 120 ${y}`;
         return <g key={y} fill="none" strokeWidth="1">
           <path d={path} stroke="#d4d4d4" vectorEffect="non-scaling-stroke" />
-          {active && <ellipse rx="4.5" ry="2" fill={pulseColors[index]} stroke="none" className="flow-pulse">
+          {active && <line x1="-5" y1="0" x2="5" y2="0" stroke={pulseColors[index]} strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" className="flow-pulse">
             <animateMotion path={path} rotate="auto" dur="2.4s" begin={`${index * -0.3}s`} repeatCount="indefinite" />
-          </ellipse>}
+          </line>}
         </g>;
       })}
     </svg>
