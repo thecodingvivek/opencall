@@ -1,5 +1,4 @@
 from typing import Annotated
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
@@ -12,9 +11,9 @@ Store = Annotated[PhonebookStore, Depends(get_phonebook_store)]
 
 
 @router.post("/guest-connect", response_model=ConnectionDetails)
-async def guest_connect(options: ConversationOptions, response: Response) -> ConnectionDetails:
+async def guest_connect(options: ConversationOptions, response: Response, user: CurrentUser) -> ConnectionDetails:
     try:
-        details = create_connection(options, {"username": f"guest-{uuid4().hex}", "guest": True})
+        details = create_connection(options, user)
         await ensure_voice_available()
     except ValueError as error:
         raise HTTPException(422, str(error)) from None

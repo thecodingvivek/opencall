@@ -30,6 +30,16 @@ def require_user(store: Store, session: Session = None) -> dict:
 CurrentUser = Annotated[dict, Depends(require_user)]
 
 
+@router.post("/guest", response_model=UserResponse)
+def guest(response: Response, store: Store, session: Session = None):
+    user = store.current_user(session) if session else None
+    if user is None:
+        token, user = store.create_guest()
+        response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax", max_age=SESSION_SECONDS)
+    response.headers["Cache-Control"] = "no-store"
+    return user
+
+
 @router.post("/login", response_model=UserResponse)
 def login(payload: LoginRequest, response: Response, store: Store):
     result = store.login(payload.username, payload.password)

@@ -2,7 +2,7 @@ import { backendUrl } from "@/lib/auth";
 
 export async function POST(request: Request, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
-  if (!["login", "logout"].includes(action)) return Response.json({ detail: "Not found" }, { status: 404 });
+  if (!["login", "logout", "guest"].includes(action)) return Response.json({ detail: "Not found" }, { status: 404 });
   if (request.headers.get("origin") !== new URL(request.url).origin) {
     return Response.json({ detail: "Invalid request origin" }, { status: 403 });
   }

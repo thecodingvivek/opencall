@@ -36,7 +36,15 @@ export function TryCall() {
       try {
         const response = await fetch("/api/conversation/phonebook", { cache: "no-store" });
         if (cancelled) return;
-        if (response.status === 401) setPhonebook({ status: "guest" });
+        if (response.status === 401) {
+          const guest = await fetch("/api/auth/guest", { method: "POST" });
+          if (!guest.ok) throw new Error("Could not create guest session");
+          const entry = await fetch("/api/conversation/phonebook", { cache: "no-store" });
+          if (!entry.ok) throw new Error("Could not load guest phonebook");
+          const data = await entry.json();
+          if (!cancelled) setPhonebook(typeof data.username === "string" && typeof data.description === "string"
+            ? { status: "ready", username: data.username, description: data.description } : { status: "error" });
+        }
         else if (!response.ok) setPhonebook({ status: "error" });
         else {
           const data = await response.json();
@@ -89,8 +97,8 @@ export function TryCall() {
     let next: Room | null = null;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone access requires localhost or HTTPS.");
-      if (phonebook.status === "loading" || phonebook.status === "error") throw new Error("Phonebook is unavailable. Please try again.");
-      const response = await fetch(phonebook.status === "ready" ? "/api/conversation/connect" : "/api/conversation/guest-connect", {
+      if (phonebook.status !== "ready") throw new Error("Phonebook is unavailable. Please try again.");
+      const response = await fetch("/api/conversation/connect", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language_code: "en-IN", voice: "Shivani" }), signal: controller.signal,
       });

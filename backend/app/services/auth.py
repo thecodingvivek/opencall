@@ -4,7 +4,7 @@ from functools import lru_cache
 from hashlib import pbkdf2_hmac, sha256
 from hmac import compare_digest
 from pathlib import Path
-from secrets import token_hex, token_urlsafe
+from secrets import token_hex, token_urlsafe, randbelow
 from time import time
 
 from tinydb import Query
@@ -58,6 +58,23 @@ class AuthStore:
             token = token_urlsafe(32)
             sessions.insert({"token_hash": sha256(token.encode()).hexdigest(),
                              "username": username, "expires_at": time() + SESSION_SECONDS})
+            return token, self.public_user(user)
+
+    def create_guest(self) -> tuple[str, dict]:
+        with database(self.path) as db:
+            users = db.table("users")
+            while True:
+                username = f"999{randbelow(10**9):09d}"
+                if not users.contains(Query().username == username):
+                    break
+            salt = token_hex(16)
+            user = {"username": username, "display_name": "Guest", "salt": salt,
+                    "password_hash": self.password_hash(token_urlsafe(32), salt)}
+            users.insert(user)
+            db.table("phonebook").insert({"username": username, "description": ""})
+            token = token_urlsafe(32)
+            db.table("sessions").insert({"token_hash": sha256(token.encode()).hexdigest(),
+                "username": username, "expires_at": time() + SESSION_SECONDS})
             return token, self.public_user(user)
 
     def current_user(self, token: str) -> dict | None:
