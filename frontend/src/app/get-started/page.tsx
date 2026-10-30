@@ -12,7 +12,7 @@ export default function GetStarted() {
         <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
         <a href="/" className="home-pill home-pill-quiet nav-back" data-cuelume-tap="">Back</a>
       </nav>
-      <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-4">
+      <div className="relative z-10 flex w-full max-w-xs -translate-y-[clamp(2rem,8vh,6rem)] flex-col items-center gap-4">
         <label htmlFor="mobile" className="w-full text-sm text-[#343433]">enter number you want to call with</label>
         <Input
           id="mobile"

@@ -103,7 +103,7 @@ function ConversationContent() {
 
 export function Conversation({ connected }: { connected: boolean }) {
   return <section aria-label="Conversation" className="relative min-w-0 px-6 text-left">
-    <div className="absolute inset-x-6 bottom-1/2 mx-auto max-h-[calc(50vh-2rem)] w-auto max-w-sm overflow-y-auto" aria-live="polite" aria-relevant="additions text">
+    <div className="conversation-scroll absolute inset-x-6 bottom-1/2 mx-auto max-h-[calc(50vh-2rem)] w-auto max-w-sm overflow-y-auto" aria-live="polite" aria-relevant="additions text">
       {connected ? <ConversationContent /> : <EmptyConversation />}
     </div>
   </section>;

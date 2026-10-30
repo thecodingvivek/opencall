@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Conversation } from "./Conversation";
 import { Orb } from "./Orb";
 import { Phonebook, type PhonebookState } from "./Phonebook";
+import FooterGradient from "../FooterGradient";
 
 type Status = "idle" | "connecting" | "active";
 
@@ -150,7 +151,12 @@ export function TryCall() {
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] bg-white">
+    <main className="relative grid min-h-screen grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] overflow-hidden bg-white">
+      <FooterGradient />
+      <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
+        <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
+        <a href="/get-started" className="home-pill home-pill-quiet nav-back">Back</a>
+      </nav>
       <Phonebook phonebook={phonebook} />
       <section aria-label="Call" className="relative flex items-center justify-center">
         <Orb audioStream={status === "active" ? orbStream : null} active={status === "active"} />

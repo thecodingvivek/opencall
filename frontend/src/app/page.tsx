@@ -2,6 +2,7 @@ import Glass from "../components/Glass";
 import CuelumeSounds from "../components/CuelumeSounds";
 import FooterGradient from "../components/FooterGradient";
 import HomeReveal from "../components/HomeReveal";
+import TextReveal from "../components/TextReveal";
 import { instrumentSerif } from "./fonts";
 
 export default function Home() {
@@ -14,19 +15,19 @@ export default function Home() {
         <span className="font-sans text-[36px] font-normal tracking-[-0.06em]">
           
         </span>
-        <HomeReveal delay={0.2} className="flex items-center gap-3">
-          <span className="font-sans text-[36px] font-normal tracking-[-0.06em]">opencall</span>
+        <div className="flex items-center gap-3">
+          <span aria-label="opencall" className="font-sans text-[36px] font-normal tracking-[-0.06em]"><TextReveal text="opencall" delay={0.2} /></span>
+          <HomeReveal delay={0.2}>
           <Glass size={60} audioEnabled={false} followCursor={false} />
-        </HomeReveal>
-        <HomeReveal delay={1}>
-        <p className="whitespace-nowrap text-[36px] tracking-[-0.03em]">
-          <span className={`${instrumentSerif.className} instrument-emphasis`} style={instrumentSerif.style}>harness</span>{" "}
-          <span className="font-sans font-normal tracking-normal">and</span>{" "}
-          <span className={`${instrumentSerif.className} instrument-emphasis`} style={instrumentSerif.style}>harvest</span>
+          </HomeReveal>
+        </div>
+        <p aria-label="harness and harvest" className="whitespace-nowrap text-[36px] tracking-[-0.03em]">
+          <span className={`${instrumentSerif.className} instrument-emphasis`} style={instrumentSerif.style}><TextReveal text="harness" delay={1} /></span>{" "}
+          <span className="font-sans font-normal tracking-normal"><TextReveal text="and" delay={1.28} /></span>{" "}
+          <span className={`${instrumentSerif.className} instrument-emphasis`} style={instrumentSerif.style}><TextReveal text="harvest" delay={1.4} /></span>
         </p>
-        </HomeReveal>
        </div>
-       <HomeReveal delay={1.7} className="flex flex-wrap items-center justify-center gap-3">
+       <HomeReveal delay={1.8} className="flex flex-wrap items-center justify-center gap-3">
          <a href="/get-started" className="home-pill" data-cuelume-tap="">GET STARTED</a>
          <a href="#idea" className="home-pill home-pill-quiet" data-cuelume-tap="">SEE THE IDEA</a>
        </HomeReveal>
