@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Room, RoomEvent } from "livekit-client";
+import { Room, RoomEvent, Track } from "livekit-client";
 import { RoomAudioRenderer, RoomContext, useVoiceAssistant } from "@livekit/components-react";
 import { Phone, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ function AgentAudio({ onSpeaking }: { onSpeaking: () => void }) {
 export function TryCall() {
   const [status, setStatus] = useState<Status>("idle");
   const [room, setRoom] = useState<Room | null>(null);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState("");
   const active = useRef<Room | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -35,6 +36,7 @@ export function TryCall() {
     active.current = null;
     busy.current = false;
     setRoom(null);
+    setAudioStream(null);
     setStatus("idle");
     void previous?.disconnect();
   }
@@ -87,6 +89,8 @@ export function TryCall() {
       if (generation.current !== attempt) { await next.disconnect(); return; }
       await next.localParticipant.setMicrophoneEnabled(true);
       if (generation.current !== attempt) { await next.disconnect(); return; }
+      const microphone = next.localParticipant.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+      if (microphone) setAudioStream(new MediaStream([microphone]));
       await next.startAudio();
       if (generation.current !== attempt) { await next.disconnect(); return; }
       setRoom(next);
@@ -106,10 +110,10 @@ export function TryCall() {
     <main className="grid min-h-screen grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] bg-white">
       <Phonebook />
       <section aria-label="Call" className="relative flex items-center justify-center">
-        <Orb />
+        <Orb audioStream={audioStream} />
         {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={() => { if (timer.current) clearTimeout(timer.current); setStatus("active"); }} /></RoomContext.Provider>}
         <div className="absolute inset-x-0 bottom-10 flex flex-col items-center gap-3">
-          <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? end : start}>
+          <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : status === "active" ? "call-ending" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? end : start}>
             {status === "connecting" ? <>Connecting <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></> : status === "active" ? <><PhoneOff aria-hidden="true" /> End call</> : <><Phone aria-hidden="true" /> Call agent</>}
           </Button>
           {error && <p role="alert" className="w-64 text-center text-sm text-red-700">{error}</p>}

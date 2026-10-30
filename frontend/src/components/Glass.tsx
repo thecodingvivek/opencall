@@ -21,13 +21,14 @@ type GlassProps = {
   colors?: Pick<GlassPalette, "top" | "bottom" | "accent">;
   /** Set to false to remove the microphone controls and audio processing. */
   audioEnabled?: boolean;
+  audioStream?: MediaStream | null;
   /** Set to false to keep the camera fixed when the cursor moves. */
   followCursor?: boolean;
   /** Orb and canvas diameter in CSS pixels. */
   size?: number;
 };
 
-export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false, followCursor = true, size = 320 }: GlassProps) {
+export default function Glass({ palettes = defaultGlassPalettes, initialPalette, colors, audioEnabled = false, audioStream = null, followCursor = true, size = 320 }: GlassProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const microphoneRef = useRef<HTMLButtonElement>(null);
@@ -311,7 +312,7 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
       let animationTime = 0;
 
       function stopMicrophone() {
-        if (stream) stream.getTracks().forEach(track => track.stop());
+        if (stream && stream !== audioStream) stream.getTracks().forEach(track => track.stop());
         stream = null;
         analyser = null;
         if (audioContext) audioContext.close().catch(console.error);
@@ -346,6 +347,16 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
             : 'Microphone unavailable · use localhost or HTTPS';
         } finally { microphone.disabled = false; }
       });
+      if (audioEnabled && audioStream) {
+        stream = audioStream;
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.75;
+        audioContext.createMediaStreamSource(stream).connect(analyser);
+        frequencies = new Uint8Array(analyser.frequencyBinCount);
+        void audioContext.resume();
+      }
       window.addEventListener('pagehide', stopMicrophone);
       const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
       let frame = 0;
@@ -428,10 +439,10 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
     }
   
     return () => { dispose(); };
-  }, [audioEnabled, initialPalette, palettes, colors, followCursor, size]);
+  }, [audioEnabled, audioStream, initialPalette, palettes, colors, followCursor, size]);
   return <div className="glass-scene" style={{ width: Number.isFinite(size) ? Math.max(1, size) : 320 }}>
     <canvas ref={canvasRef} id="glass" role="img" aria-label="A glass sphere containing animated liquid with sound waves" />
-    <div className="glass-controls" hidden={!audioEnabled} style={{ display: audioEnabled ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
+    <div className="glass-controls" hidden={!audioEnabled || !!audioStream} style={{ display: audioEnabled && !audioStream ? undefined : "none" }}><button ref={microphoneRef} id="microphone" type="button" aria-pressed="false">Use microphone</button><p ref={statusRef} id="status" role="status">Sound wave preview</p></div>
     <p ref={errorRef} id="error" hidden />
     <style jsx>{`
       .glass-scene{position:relative;max-width:100%;aspect-ratio:1;flex-shrink:0;background:transparent;color:#506864;font:12px system-ui}

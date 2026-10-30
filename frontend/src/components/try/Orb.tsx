@@ -1,6 +1,6 @@
 import Glass from "../Glass";
 
-export function Orb() {
+export function Orb({ audioStream }: { audioStream: MediaStream | null }) {
   return (
     <>
         <svg aria-hidden="true" viewBox="0 0 120 160" preserveAspectRatio="none" className="pointer-events-none absolute right-full top-1/2 h-40 w-[min(12vw,120px)] -translate-y-1/2 text-[#d4d4d4]">
@@ -13,7 +13,7 @@ export function Orb() {
             <path d="M0 150 C60 150 60 80 120 80" vectorEffect="non-scaling-stroke" />
           </g>
         </svg>
-        <Glass size={160} audioEnabled={false} followCursor={false} />
+        <Glass size={160} audioEnabled={!!audioStream} audioStream={audioStream} followCursor={false} />
         <svg aria-hidden="true" viewBox="0 0 120 160" preserveAspectRatio="none" className="pointer-events-none absolute left-full top-1/2 h-40 w-[min(12vw,120px)] -translate-y-1/2 text-[#d4d4d4]">
           <g fill="none" stroke="currentColor" strokeWidth="1">
             <path d="M0 80 C60 80 60 10 120 10" vectorEffect="non-scaling-stroke" />
