@@ -75,6 +75,7 @@ def create_connection(options: ConversationOptions, user: dict) -> ConnectionDet
             agents=[api.RoomAgentDispatch(
                 agent_name=AGENT_NAME, metadata=json.dumps({
                     **options.model_dump(), "participant_identity": identity, "username": user["username"],
+                    "guest": user.get("guest", False),
                 }),
             )],
         ))

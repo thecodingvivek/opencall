@@ -11,7 +11,7 @@ from livekit.agents.llm import ChatMessage
 from app.core.config import get_settings
 from observability.tracing import SessionObservation
 from app.services.conversation import AGENT_NAME, ConversationOptions
-from app.services.phonebook import get_phonebook_store, update_description_after_session
+from app.services.phonebook import PhonebookEntry, get_phonebook_store, update_description_after_session
 from app.services.realtime_speech import ConversationTTS
 from tools import AGENT_TOOLS
 
@@ -37,6 +37,7 @@ async def conversation(ctx: JobContext):
     if not isinstance(username, str) or not username:
         raise ValueError("Conversation dispatch is missing its username")
     store = get_phonebook_store()
+    guest = metadata.get("guest") is True
     observation = await asyncio.to_thread(SessionObservation, username, ctx.job.room.name, options.language_code, options.voice)
     session = None
 
@@ -49,12 +50,13 @@ async def conversation(ctx: JobContext):
                     finally:
                         statements = [item.text_content for item in session.history.items
                                       if isinstance(item, ChatMessage) and item.role == "user" and item.text_content]
-                        await update_description_after_session(store, username, statements)
+                        if not guest:
+                            await update_description_after_session(store, username, statements)
         finally:
             await observation.finish()
 
     ctx.add_shutdown_callback(close_and_update_description)
-    entry = store.get(username)
+    entry = PhonebookEntry(username="unknown") if guest else store.get(username)
 
     session = AgentSession(
         stt=gnani.STT(api_key=settings.gnani_api_key.get_secret_value(),
