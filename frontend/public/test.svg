@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="765" height="1024" viewBox="0 0 765 1024">
+<title>Classic keypad phone</title>
+<desc>A front-facing charcoal keypad phone with a black display and light markings.</desc>
+<defs>
+  <filter id="shadow" x="-35%" y="-20%" width="170%" height="150%"><feGaussianBlur stdDeviation="12"/></filter>
+  <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#393a3c"/><stop offset="1" stop-color="#252628"/></linearGradient>
+  <linearGradient id="key" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#17181a"/><stop offset="1" stop-color="#252628"/></linearGradient>
+</defs>
+<path d="M232 966 C272 995 493 996 536 966" fill="none" stroke="#222222" stroke-opacity=".25" stroke-width="26" filter="url(#shadow)"/>
+<!-- Outer shell and the fine inset seam -->
+<path d="M382 49 C333 49 279 49 251 55 C218 62 204 80 198 112 C184 180 179 265 181 350 C182 408 190 492 193 562 C196 656 194 813 198 901 C200 951 210 970 247 979 C280 988 336 989 382 989 C428 989 485 988 518 979 C555 970 565 951 567 901 C571 813 569 656 572 562 C575 492 583 408 584 350 C586 265 581 180 567 112 C561 80 547 62 514 55 C486 49 432 49 382 49 Z" fill="#414244" stroke="#1d1e20" stroke-width="1.7"/>
+<path d="M382 56 C334 56 280 56 254 62 C224 69 211 84 205 115 C191 183 186 266 188 350 C189 411 197 494 200 562 C203 656 201 811 205 899 C207 944 215 961 249 970 C280 978 337 979 382 979 C427 979 484 978 515 970 C549 961 557 944 559 899 C563 811 561 656 564 562 C567 494 575 411 576 350 C578 266 573 183 559 115 C553 84 540 69 510 62 C484 56 430 56 382 56 Z" fill="url(#body)" stroke="#535456" stroke-width="1.2"/>
+<!-- Lavender upper panel -->
+<path d="M382 64 C336 64 284 64 258 70 C231 76 220 91 214 119 C201 182 195 266 197 347 C198 407 207 475 222 519 C227 534 237 541 253 544 C283 549 335 550 382 550 C429 550 481 549 511 544 C527 541 537 534 542 519 C557 475 566 407 567 347 C569 266 563 182 550 119 C544 91 533 76 506 70 C480 64 428 64 382 64 Z" fill="#08090a" stroke="#171819" stroke-width="1.3"/>
+<rect x="329.5" y="107" width="107" height="10.5" rx="5.25" fill="#292a2b" stroke="#111213" stroke-width="1.3"/>
+<!-- Display -->
+<rect x="263" y="157" width="240" height="300" rx="9" fill="#17181a" stroke="#161718" stroke-width="1.5"/>
+<g fill="#eeeeee">
+ <path d="M269 175h3v5h-3zm5-3h3v8h-3zm5-3h3v11h-3zm5-4h3v15h-3zm5-4h4v19h-4z"/>
+ <path d="M308 162h18a2 2 0 0 1 2 2v15h-26v-10z"/>
+ <path d="M315 166l3-2h2v12h-2v-9l-2 1z" fill="#17181a"/>
+ <path d="M342 162l9 6a2 2 0 0 1 .5 2.7l-2 2.6-3-2-8 8-3-1 7-10-2-2z"/>
+</g>
+<g fill="none" stroke="#eeeeee" stroke-width="1.5" stroke-linejoin="round"><rect x="472" y="163" width="24" height="15" rx="1.5"/><path d="M470 167h-1v7h1"/></g><rect x="475" y="166" width="18" height="9" rx=".5" fill="#eeeeee"/>
+<g fill="#eeeeee" font-family="Arial, Helvetica, sans-serif"><text x="383" y="265" font-size="66" text-anchor="middle" font-weight="400" letter-spacing="-2">20:21</text><text x="383" y="309" font-size="29" text-anchor="middle">30.12.2021</text><text x="267" y="450" font-size="22">Unlock</text></g>
+<text x="382" y="510" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="bold" letter-spacing="-1" fill="#e5e5e5">NOKIA</text>
+<!-- Soft keys and navigation pad -->
+<g stroke="#111214" stroke-width="1.6" stroke-linejoin="round">
+ <path d="M244 554 C234 554 229 560 227 570 L218 640 C216 652 221 658 232 660 L299 665 C309 666 316 659 316 649 L316 576 C316 567 310 562 301 560 Z" fill="url(#key)"/>
+ <path d="M520 554 C530 554 535 560 537 570 L546 640 C548 652 543 658 532 660 L465 665 C455 666 448 659 448 649 L448 576 C448 567 454 562 463 560 Z" fill="url(#key)"/>
+ <rect x="330.5" y="562.5" width="105" height="106" rx="26" fill="#242527"/>
+ <rect x="343.5" y="575.5" width="79" height="80" rx="18" fill="#292a2c" stroke="#111214"/>
+</g>
+<g fill="none" stroke="#d3d3d3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M251 581l34 4M479 585l34-4"/><path d="M248 640c0-8 3-11 9-11l15 2c6 1 9 4 9 11"/><path d="M483 640c0-7 3-10 9-11l15-1c6 0 9 3 9 10"/><circle cx="500" cy="640" r="5"/><path d="M500 637v4"/></g>
+<!-- Key wells -->
+<g fill="#101112" opacity=".7"><path d="M229 676 Q218 675 218 687 L218 716 Q218 726 228 730 L303 738 Q316 738 316 725 L316 697 Q316 687 305 685Z"/><rect x="331" y="686" width="105" height="53" rx="13"/><path d="M460 685 L536 676 Q548 675 548 687 L548 716 Q548 726 538 730 L462 738 Q450 738 450 725 L450 697 Q450 687 460 685Z"/></g>
+<g fill="url(#key)" stroke="#111214" stroke-width="1.5" stroke-linejoin="round">
+ <path d="M231 671 L302 680 Q316 681 316 693 L316 720 Q316 733 303 733 L230 725 Q218 724 218 713 L218 684 Q218 670 231 671Z"/>
+ <rect x="330.5" y="681" width="105" height="53" rx="12"/>
+ <path d="M535 671 L464 680 Q450 681 450 693 L450 720 Q450 733 463 733 L536 725 Q548 724 548 713 L548 684 Q548 670 535 671Z"/>
+ <path d="M231 738 L302 747 Q316 748 316 760 L316 787 Q316 800 303 800 L230 792 Q218 791 218 780 L218 751 Q218 737 231 738Z"/>
+ <rect x="330.5" y="749" width="105" height="53" rx="12"/>
+ <path d="M535 738 L464 747 Q450 748 450 760 L450 787 Q450 800 463 800 L536 792 Q548 791 548 780 L548 751 Q548 737 535 738Z"/>
+ <path d="M232 806 L302 815 Q316 816 316 828 L316 855 Q316 868 303 868 L231 860 Q219 859 219 848 L219 819 Q219 805 232 806Z"/>
+ <rect x="331" y="817" width="104" height="53" rx="12"/>
+ <path d="M534 806 L464 815 Q450 816 450 828 L450 855 Q450 868 463 868 L535 860 Q547 859 547 848 L547 819 Q547 805 534 806Z"/>
+ <path d="M234 874 L304 883 Q317 884 317 896 L317 923 Q317 936 304 936 L233 928 Q222 927 222 916 L222 887 Q222 873 234 874Z"/>
+ <rect x="332" y="885" width="102" height="53" rx="12"/>
+ <path d="M532 874 L462 883 Q449 884 449 896 L449 923 Q449 936 462 936 L533 928 Q544 927 544 916 L544 887 Q544 873 532 874Z"/>
+</g>
+<g fill="#e9e9e9" font-family="Arial, Helvetica, sans-serif">
+ <g font-size="30" font-weight="300"><text x="239" y="711">1</text><text x="359" y="720">2</text><text x="510" y="711">3</text><text x="238" y="781">4</text><text x="358" y="789">5</text><text x="509" y="781">6</text><text x="239" y="849">7</text><text x="358" y="857">8</text><text x="508" y="849">9</text><text x="357" y="925">0</text><text x="238" y="924" font-size="36">*</text><text x="507" y="922" font-size="32">#</text></g>
+ <g font-size="17"><text x="268" y="711">∞</text><text x="381" y="718">abc</text><text x="474" y="711">def</text><text x="264" y="781">ghi</text><text x="384" y="787">jkl</text><text x="470" y="781">mno</text><text x="262" y="849">pqrs</text><text x="382" y="855">tuv</text><text x="464" y="849">wxyz</text><text x="277" y="917">+</text><text x="468" y="916" font-size="14">⇧</text><text x="486" y="916" font-size="14">⌁</text></g>
+</g>
+<g fill="none" stroke="#555657" stroke-width="1"><rect x="340.5" y="763" width="5" height="26" rx="2.5" fill="#47484a"/><rect x="420" y="763" width="5" height="26" rx="2.5" fill="#47484a"/></g>
+<path d="M388 910v7h17v-5" fill="none" stroke="#e9e9e9" stroke-width="1.6" stroke-linecap="round"/><circle cx="220.5" cy="867" r="3.5" fill="#111214"/>
+</svg>

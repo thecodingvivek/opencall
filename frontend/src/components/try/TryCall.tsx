@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Conversation } from "./Conversation";
 import { Orb } from "./Orb";
 import { Phonebook, type PhonebookState } from "./Phonebook";
+import { PhoneScreen } from "./PhoneScreen";
 import FooterGradient from "../FooterGradient";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 type Status = "idle" | "connecting" | "active";
 
@@ -21,6 +23,7 @@ function AgentAudio({ onSpeaking, onTrack }: { onSpeaking: () => void; onTrack: 
 }
 
 export function TryCall() {
+  const reducedMotion = useReducedMotion();
   const [status, setStatus] = useState<Status>("idle");
   const [room, setRoom] = useState<Room | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
@@ -153,6 +156,14 @@ export function TryCall() {
   return (
     <main className="relative grid min-h-screen grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] overflow-hidden bg-white">
       <FooterGradient />
+      <motion.div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/2 z-10 w-[min(70vw,320px)] -translate-x-1/2"
+        initial={false}
+        animate={{ y: status === "idle" ? "100%" : "30%" }}
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.8, ease: [0.22, 1, 0.36, 1] }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/test.svg" alt="" className="block h-auto w-full" />
+        <PhoneScreen status={status} />
+      </motion.div>
       <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
         <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
         <a href="/get-started" className="home-pill home-pill-quiet nav-back">Back</a>
@@ -161,10 +172,18 @@ export function TryCall() {
       <section aria-label="Call" className="relative flex items-center justify-center">
         <Orb audioStream={status === "active" ? orbStream : null} active={status === "active"} />
         {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={onSpeaking} onTrack={setAgentTrack} /></RoomContext.Provider>}
-        <div className="absolute inset-x-0 bottom-10 flex flex-col items-center gap-3">
+        <div className="absolute inset-x-0 bottom-10 z-20 flex flex-col items-center gap-3">
+          <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={status === "idle" ? "start" : "call"}
+            initial={reducedMotion ? false : { y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={reducedMotion ? { opacity: 0 } : { y: 100, opacity: 0 }}
+            transition={reducedMotion ? { duration: 0 } : { duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
           <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : status === "active" ? "call-ending" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? end : start}>
             {status === "connecting" ? <>Connecting <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></> : status === "active" ? <><PhoneOff aria-hidden="true" /> End call</> : <><Phone aria-hidden="true" /> Call agent</>}
           </Button>
+          </motion.div>
+          </AnimatePresence>
           {error && <p role="alert" className="w-64 text-center text-sm text-red-700">{error}</p>}
         </div>
       </section>
