@@ -1,6 +1,7 @@
 import Glass from "../Glass";
 
 const offsets = [10, 35, 60, 100, 125, 150];
+const pulseColors = ["#00a884", "#00a4d6", "#6657e8", "#db4d94", "#e77b24", "#40a84e"];
 
 function FlowLines({ side, active }: { side: "left" | "right"; active: boolean }) {
   return (
@@ -9,7 +10,9 @@ function FlowLines({ side, active }: { side: "left" | "right"; active: boolean }
         const path = side === "left" ? `M0 ${y} C60 ${y} 60 80 120 80` : `M0 80 C60 80 60 ${y} 120 ${y}`;
         return <g key={y} fill="none" strokeWidth="1">
           <path d={path} stroke="#d4d4d4" vectorEffect="non-scaling-stroke" />
-          {active && <path d={path} pathLength="100" stroke="#8c9f96" strokeLinecap="round" strokeDasharray="4 96" className="flow-pulse" style={{ animationDelay: `${index * -0.24}s` }} vectorEffect="non-scaling-stroke" />}
+          {active && <ellipse rx="4.5" ry="2" fill={pulseColors[index]} stroke="none" className="flow-pulse">
+            <animateMotion path={path} rotate="auto" dur="2.4s" begin={`${index * -0.3}s`} repeatCount="indefinite" />
+          </ellipse>}
         </g>;
       })}
     </svg>

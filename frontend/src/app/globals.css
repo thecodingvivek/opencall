@@ -239,6 +239,4 @@ body {
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .typing-dots i { animation: none; } }
 
-.flow-pulse { animation: flow-pulse 2.4s linear infinite; }
-@keyframes flow-pulse { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .flow-pulse { display: none; } }
