@@ -26,7 +26,7 @@ export default function Home() {
          <a href="#idea" className="home-pill home-pill-quiet" data-cuelume-tap="">SEE THE IDEA</a>
        </div>
       </div>
-      <footer aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden" style={{ aspectRatio: "1920 / 403" }}>
+      <footer aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-1/2 overflow-hidden" style={{ aspectRatio: "1920 / 403" }}>
         {/* The SVG includes the blurred edges surrounding the Figma frame. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/footer-figma.svg" alt="" className="absolute max-w-none" style={{ left: "-2.32%", top: "-8.69%", width: "104.64%", height: "117.38%" }} />
