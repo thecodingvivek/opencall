@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { RoomAudioRenderer, RoomContext, useVoiceAssistant } from "@livekit/components-react";
 import { Phone, PhoneOff } from "lucide-react";
@@ -11,9 +11,11 @@ import { Phonebook, type PhonebookState } from "./Phonebook";
 
 type Status = "idle" | "connecting" | "active";
 
-function AgentAudio({ onSpeaking }: { onSpeaking: () => void }) {
-  const { state } = useVoiceAssistant();
+function AgentAudio({ onSpeaking, onTrack }: { onSpeaking: () => void; onTrack: (track: MediaStreamTrack | null) => void }) {
+  const { state, audioTrack } = useVoiceAssistant();
+  const track = audioTrack?.publication.track?.mediaStreamTrack ?? null;
   useEffect(() => { if (state === "speaking") onSpeaking(); }, [state, onSpeaking]);
+  useEffect(() => { onTrack(track); return () => onTrack(null); }, [track, onTrack]);
   return <RoomAudioRenderer />;
 }
 
@@ -21,6 +23,11 @@ export function TryCall() {
   const [status, setStatus] = useState<Status>("idle");
   const [room, setRoom] = useState<Room | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [agentTrack, setAgentTrack] = useState<MediaStreamTrack | null>(null);
+  const orbStream = useMemo(() => {
+    const tracks = [...(audioStream?.getAudioTracks() ?? []), ...(agentTrack ? [agentTrack] : [])];
+    return tracks.length ? new MediaStream(tracks) : null;
+  }, [audioStream, agentTrack]);
   const [error, setError] = useState("");
   const [phonebook, setPhonebook] = useState<PhonebookState>({ status: "loading" });
   const active = useRef<Room | null>(null);
@@ -28,6 +35,7 @@ export function TryCall() {
   const generation = useRef(0);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSpeaking = useCallback(() => { if (timer.current) clearTimeout(timer.current); setStatus("active"); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +78,7 @@ export function TryCall() {
     busy.current = false;
     setRoom(null);
     setAudioStream(null);
+    setAgentTrack(null);
     setStatus("idle");
     void previous?.disconnect();
   }
@@ -144,8 +153,8 @@ export function TryCall() {
     <main className="grid min-h-screen grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] bg-white">
       <Phonebook phonebook={phonebook} />
       <section aria-label="Call" className="relative flex items-center justify-center">
-        <Orb audioStream={status === "active" ? audioStream : null} />
-        {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={() => { if (timer.current) clearTimeout(timer.current); setStatus("active"); }} /></RoomContext.Provider>}
+        <Orb audioStream={status === "active" ? orbStream : null} active={status === "active"} />
+        {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={onSpeaking} onTrack={setAgentTrack} /></RoomContext.Provider>}
         <div className="absolute inset-x-0 bottom-10 flex flex-col items-center gap-3">
           <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : status === "active" ? "call-ending" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? end : start}>
             {status === "connecting" ? <>Connecting <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></> : status === "active" ? <><PhoneOff aria-hidden="true" /> End call</> : <><Phone aria-hidden="true" /> Call agent</>}

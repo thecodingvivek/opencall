@@ -353,7 +353,9 @@ export default function Glass({ palettes = defaultGlassPalettes, initialPalette,
         analyser = audioContext.createAnalyser();
         analyser.fftSize = 1024;
         analyser.smoothingTimeConstant = 0.75;
-        audioContext.createMediaStreamSource(stream).connect(analyser);
+        for (const track of stream.getAudioTracks()) {
+          audioContext.createMediaStreamSource(new MediaStream([track])).connect(analyser);
+        }
         frequencies = new Uint8Array(analyser.frequencyBinCount);
         void audioContext.resume();
       }
