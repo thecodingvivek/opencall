@@ -1,6 +1,7 @@
 import Glass from "../components/Glass";
 import CuelumeSounds from "../components/CuelumeSounds";
 import FooterGradient from "../components/FooterGradient";
+import HomeReveal from "../components/HomeReveal";
 import { instrumentSerif } from "./fonts";
 
 export default function Home() {
@@ -13,20 +14,22 @@ export default function Home() {
         <span className="font-sans text-[36px] font-normal tracking-[-0.06em]">
           
         </span>
-        <span className="font-sans text-[36px] font-normal tracking-[-0.06em]">
-          opencall
-        </span>
-        <Glass size={60} audioEnabled={false} followCursor={false} />
+        <HomeReveal delay={0.2} className="flex items-center gap-3">
+          <span className="font-sans text-[36px] font-normal tracking-[-0.06em]">opencall</span>
+          <Glass size={60} audioEnabled={false} followCursor={false} />
+        </HomeReveal>
+        <HomeReveal delay={1}>
         <p className="whitespace-nowrap text-[36px] tracking-[-0.03em]">
           <span className={`${instrumentSerif.className} instrument-emphasis`} style={instrumentSerif.style}>harness</span>{" "}
           <span className="font-sans font-normal tracking-normal">and</span>{" "}
           <span className={`${instrumentSerif.className} instrument-emphasis`} style={instrumentSerif.style}>harvest</span>
         </p>
+        </HomeReveal>
        </div>
-       <div className="flex flex-wrap items-center justify-center gap-3">
+       <HomeReveal delay={1.7} className="flex flex-wrap items-center justify-center gap-3">
          <a href="/get-started" className="home-pill" data-cuelume-tap="">GET STARTED</a>
          <a href="#idea" className="home-pill home-pill-quiet" data-cuelume-tap="">SEE THE IDEA</a>
-       </div>
+       </HomeReveal>
       </div>
       <FooterGradient playIntro />
     </main>

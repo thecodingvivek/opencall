@@ -65,6 +65,7 @@ body {
   -webkit-text-stroke: 0.3px currentColor;
 }
 
+
  .home-pill {
   position: relative;
   isolation: isolate;
@@ -135,12 +136,16 @@ body {
   cursor: pointer;
 }
 
-.call-pill::before { background: #16a34a; }
+.call-pill::before { background-color: #16a34a; }
 
 @media (hover: hover) and (pointer: fine) {
   .call-pill::before { background-image: linear-gradient(105deg, transparent 42%, #ffffff3d 50%, transparent 58%); }
   .call-pill:hover { background: transparent; }
   .call-pill:hover::before { background-color: #15803d; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .call-pill::before, .call-pill:hover::before { background-image: none; }
 }
 
 :root {
@@ -240,3 +245,11 @@ body {
 @media (prefers-reduced-motion: reduce) { .typing-dots i { animation: none; } }
 
 @media (prefers-reduced-motion: reduce) { .flow-pulse { display: none; } }
+
+.conversation-scroll { scrollbar-width: none; }
+.conversation-scroll::-webkit-scrollbar { display: none; }
+
+.nav-back { border-radius: 9px; }
+@supports (corner-shape: squircle) {
+  .nav-back, .nav-back::before { border-radius: 12px; corner-shape: squircle; }
+}

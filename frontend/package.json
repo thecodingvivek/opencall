@@ -17,6 +17,7 @@
     "cuelume": "^0.2.8",
     "livekit-client": "^2.23.0",
     "lucide-react": "^1.64.0",
+    "motion": "^14.8.0",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
