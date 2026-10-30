@@ -125,6 +125,24 @@ body {
   .home-pill::before, .home-pill:hover::before { transition: none; background-image: none; }
 }
 
+.call-pill {
+  gap: 10px;
+  height: 52px;
+  padding: 0 30px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.call-pill::before { background: #16a34a; }
+
+@media (hover: hover) and (pointer: fine) {
+  .call-pill::before { background-image: linear-gradient(105deg, transparent 42%, #ffffff3d 50%, transparent 58%); }
+  .call-pill:hover { background: transparent; }
+  .call-pill:hover::before { background-color: #15803d; }
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
