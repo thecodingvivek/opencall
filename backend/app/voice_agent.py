@@ -13,6 +13,7 @@ from observability.tracing import SessionObservation
 from app.services.conversation import AGENT_NAME, ConversationOptions
 from app.services.phonebook import PhonebookEntry, get_phonebook_store, update_description_after_session
 from app.services.realtime_speech import ConversationTTS
+from app.services.agent_steps import send_step
 from tools import AGENT_TOOLS
 
 settings = get_settings()
@@ -105,6 +106,11 @@ async def conversation(ctx: JobContext):
     ctx.add_shutdown_callback(cancel_limit)
     with observation.activate():
         await ctx.connect()
+        @ctx.room.on("data_received")
+        def on_data(packet):
+            if packet.topic == "agent_observability_ready" and packet.participant and packet.participant.identity == identity:
+                asyncio.create_task(send_step("phonebook_lookup", {"found": bool(entry.description.strip())}))
+
         await ctx.wait_for_participant(identity=identity)
         await session.start(
             room=ctx.room,

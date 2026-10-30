@@ -10,6 +10,7 @@ import aiohttp
 from livekit.agents import ToolError, function_tool
 
 from observability.tracing import observed
+from app.services.agent_steps import send_step
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -219,13 +220,18 @@ async def get_weather(location: str, start: str = "now", end: str | None = None)
     History starts in 1940; forecasts end 15 days after today. Max 366 days per call.
     Longer periods return compact summaries. Ask for a city if missing; never guess unavailable weather.
     """
+    await send_step("weather_started", {"location": location})
     try:
         async with asyncio.timeout(20):
             data = await weather_data(location, start, end)
+        await send_step("weather_completed", {"location": data.get("location", location)})
         return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     except ToolError:
+        await send_step("weather_failed", {})
         raise
     except (aiohttp.ClientError, asyncio.TimeoutError):
+        await send_step("weather_failed", {})
         raise ToolError("The weather service is temporarily unavailable. Please try again shortly.") from None
     except (ValueError, KeyError, TypeError, OverflowError):
+        await send_step("weather_failed", {})
         raise ToolError("The weather service returned incomplete data. Ask for a clearer location or time and try again.") from None
