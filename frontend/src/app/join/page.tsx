@@ -53,6 +53,13 @@ export default function JoinPage() {
         active.current = null; setRoom(null);
         setError("The call disconnected. Generate a new room code to try again.");
       });
+      next.on(RoomEvent.ParticipantDisconnected, participant => {
+        if (!participant.identity.startsWith("observer-") || active.current !== current) return;
+        active.current = null;
+        setRoom(null);
+        setError("The laptop ended the session. Generate a new room code to call again.");
+        void current.disconnect();
+      });
       await next.connect(details.server_url, details.participant_token);
       if (generation.current !== attempt) { await next.disconnect(); return; }
       await next.localParticipant.setMicrophoneEnabled(true);

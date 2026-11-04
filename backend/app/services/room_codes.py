@@ -23,12 +23,13 @@ def create_code(path) -> str:
             code = f"{randbelow(100_000_000):08d}"
             if not codes.contains(Query().code_hash == _hash(code)):
                 break
-        codes.insert({"code_hash": _hash(code), "room_name": f"opencall-{uuid4().hex}",
+        room = {"room_name": f"opencall-{uuid4().hex}", "participant_identity": f"user-{uuid4().hex}"}
+        codes.insert({"code_hash": _hash(code), **room,
                       "expires_at": time() + CODE_LIFETIME_SECONDS})
-        return code
+        return code, room
 
 
-def claim_code(path, code: str) -> str | None:
+def claim_code(path, code: str) -> dict | None:
     with database(path) as db:
         codes = db.table("room_codes")
         query = Query().code_hash == _hash(code)
@@ -38,4 +39,4 @@ def claim_code(path, code: str) -> str | None:
                 codes.remove(query)
             return None
         codes.remove(query)
-        return entry["room_name"]
+        return entry
