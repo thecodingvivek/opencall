@@ -32,7 +32,7 @@ class TokenTests(unittest.TestCase):
             'username': 'demo', 'password': 'opencall123'}).json()
         self.settings = Mock(gnani_api_key=SecretStr('gnani-private'),
             groq_api_key=SecretStr('groq-private'), livekit_api_key='test-key',
-            livekit_api_secret=SecretStr('s' * 40), livekit_url='ws://127.0.0.1:7880', livekit_public_url=None)
+            livekit_api_secret=SecretStr('s' * 40), livekit_url='ws://127.0.0.1:7880')
         patcher = patch('app.services.conversation.get_settings', return_value=self.settings)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -91,53 +91,12 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('gnani-private', response.text)
 
-    def test_join_token_can_use_public_livekit_address(self):
-        self.settings.livekit_public_url = 'wss://voice.example.com'
-        response = self.client.post('/api/v1/conversation/connect', json={})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['server_url'], 'wss://voice.example.com')
-
     def test_unavailable_voice_service_returns_503_instead_of_join_token(self):
         with patch('app.api.routes.conversation.ensure_voice_available',
                    new=AsyncMock(side_effect=RuntimeError('Voice service is unavailable'))):
             response = self.client.post('/api/v1/conversation/connect', json={})
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('participant_token', response.json())
-
-    def test_room_code_creates_reserved_room_and_is_single_use(self):
-        self.client.cookies.clear()
-        self.assertEqual(self.client.post('/api/v1/conversation/rooms').status_code, 401)
-        self.client.post('/api/v1/auth/guest')
-        created = self.client.post('/api/v1/conversation/rooms')
-        self.assertEqual(created.status_code, 200)
-        code = created.json()['code']
-        self.assertRegex(code, r'^\d{8}$')
-        observer = jwt.decode(created.json()['participant_token'], 's' * 40, algorithms=['HS256'])
-        self.assertFalse(observer['video']['canPublish'])
-        self.assertEqual(observer['roomConfig']['agents'][0]['agentName'], 'opencall-conversation')
-        self.client.cookies.clear()
-        self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 401)
-        self.client.post('/api/v1/auth/guest')
-        joined = self.client.post('/api/v1/conversation/rooms/join', json={'code': code})
-        self.assertEqual(joined.status_code, 200)
-        details = joined.json()
-        claims = jwt.decode(details['participant_token'], 's' * 40, algorithms=['HS256'])
-        self.assertEqual(claims['video']['room'], details['room_name'])
-        metadata = json.loads(observer['roomConfig']['agents'][0]['metadata'])
-        self.assertEqual(metadata['participant_identity'], claims['sub'])
-        self.assertEqual(observer['video']['room'], claims['video']['room'])
-        self.assertFalse(claims['roomConfig'].get('agents'))
-        self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 404)
-
-    def test_expired_code_and_unavailable_service(self):
-        from app.core.database import database
-        from tinydb import Query
-        code = self.client.post('/api/v1/conversation/rooms').json()['code']
-        with patch('app.api.routes.conversation.ensure_voice_available', new=AsyncMock(side_effect=RuntimeError('Unavailable'))):
-            self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 503)
-        with database(self.store.path) as db:
-            db.table('room_codes').update({'expires_at': 0}, Query().expires_at > 0)
-        self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 404)
 
 
 class Socket:

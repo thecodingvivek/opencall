@@ -4,7 +4,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { RoomCode } from "@/components/RoomCode";
 
 export default function GetStarted() {
   return (
@@ -15,7 +14,9 @@ export default function GetStarted() {
         <Link href="/" className="home-pill home-pill-quiet nav-back" data-cuelume-tap="">Back</Link>
       </nav>
       <div className="relative z-10 flex w-full max-w-xs -translate-y-[clamp(2rem,8vh,6rem)] flex-col items-center gap-4">
-        <RoomCode />
+        <a href="/join" data-cuelume-tap="" className={cn(buttonVariants({ variant: "secondary" }), "h-10 w-full rounded-full bg-[#f3f3f3] text-[#343433]")}>
+          join with QR or room number
+        </a>
         <label htmlFor="mobile" className="w-full text-sm text-[#343433]">enter number you want to call with</label>
         <Input
           id="mobile"

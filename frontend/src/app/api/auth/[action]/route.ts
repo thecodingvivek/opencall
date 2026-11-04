@@ -1,10 +1,9 @@
 import { backendUrl } from "@/lib/auth";
-import { isSameOrigin } from "@/lib/request-origin";
 
 export async function POST(request: Request, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
   if (!["login", "logout", "guest"].includes(action)) return Response.json({ detail: "Not found" }, { status: 404 });
-  if (!isSameOrigin(request)) {
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
     return Response.json({ detail: "Invalid request origin" }, { status: 403 });
   }
   try {

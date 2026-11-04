@@ -1,11 +1,10 @@
 import { backendUrl } from "@/lib/auth";
-import { isSameOrigin } from "@/lib/request-origin";
 
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const path = (await context.params).path.join("/");
-  const allowed = request.method === "POST" ? ["connect", "guest-connect", "rooms", "rooms/join"].includes(path) : path === "phonebook";
+  const allowed = request.method === "POST" ? path === "connect" || path === "guest-connect" : path === "phonebook";
   if (!allowed) return Response.json({ detail: "Not found" }, { status: 404 });
-  if (request.method !== "GET" && !isSameOrigin(request)) {
+  if (request.method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin) {
     return Response.json({ detail: "Invalid request origin" }, { status: 403 });
   }
   try {

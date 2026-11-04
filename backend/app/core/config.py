@@ -19,7 +19,6 @@ class Settings(BaseSettings):
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
     livekit_url: str = "ws://127.0.0.1:7880"
-    livekit_public_url: str | None = None
     livekit_api_key: str = "devkey"
     livekit_api_secret: SecretStr = SecretStr("secret")
     conversation_max_seconds: int = 1800
