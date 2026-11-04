@@ -50,7 +50,7 @@ class ConnectionDetails(BaseModel):
     participant_identity: str
 
 
-def create_connection(options: ConversationOptions, user: dict) -> ConnectionDetails:
+def create_connection(options: ConversationOptions, user: dict, *, room_name: str | None = None) -> ConnectionDetails:
     settings = get_settings()
     if options.voice not in TTS_VOICES:
         raise ValueError("Choose a supported Timbre v3.0 voice.")
@@ -58,7 +58,7 @@ def create_connection(options: ConversationOptions, user: dict) -> ConnectionDet
         raise RuntimeError("Set GNANI_API_KEY and GROQ_API_KEY on the backend.")
     if not settings.livekit_api_key or not settings.livekit_api_secret.get_secret_value():
         raise RuntimeError("Configure the LiveKit server credentials on the backend.")
-    room_name = f"opencall-{uuid4().hex}"
+    room_name = room_name or f"opencall-{uuid4().hex}"
     identity = f"user-{uuid4().hex}"
     token = (
         api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret.get_secret_value())

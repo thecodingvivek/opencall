@@ -98,6 +98,32 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('participant_token', response.json())
 
+    def test_room_code_creates_reserved_room_and_is_single_use(self):
+        self.client.cookies.clear()
+        created = self.client.post('/api/v1/conversation/rooms')
+        self.assertEqual(created.status_code, 200)
+        code = created.json()['code']
+        self.assertRegex(code, r'^\d{8}$')
+        self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 401)
+        self.client.post('/api/v1/auth/guest')
+        joined = self.client.post('/api/v1/conversation/rooms/join', json={'code': code})
+        self.assertEqual(joined.status_code, 200)
+        details = joined.json()
+        claims = jwt.decode(details['participant_token'], 's' * 40, algorithms=['HS256'])
+        self.assertEqual(claims['video']['room'], details['room_name'])
+        self.assertEqual(claims['roomConfig']['agents'][0]['agentName'], 'opencall-conversation')
+        self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 404)
+
+    def test_expired_code_and_unavailable_service(self):
+        from app.core.database import database
+        from tinydb import Query
+        code = self.client.post('/api/v1/conversation/rooms').json()['code']
+        with patch('app.api.routes.conversation.ensure_voice_available', new=AsyncMock(side_effect=RuntimeError('Unavailable'))):
+            self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 503)
+        with database(self.store.path) as db:
+            db.table('room_codes').update({'expires_at': 0}, Query().expires_at > 0)
+        self.assertEqual(self.client.post('/api/v1/conversation/rooms/join', json={'code': code}).status_code, 404)
+
 
 class Socket:
     def __init__(self, messages):

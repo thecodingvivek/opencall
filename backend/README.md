@@ -219,6 +219,24 @@ virtual environment. Live Gnani requests and browser audio remain unverified.
 
 ## Continuous voice conversations
 
+### Join from a phone with a room code
+
+On the laptop, open `/get-started` and select **Generate room code**. On the
+phone, open the same website, select **Join a room**, enter the eight-digit code,
+and allow microphone access. The code expires after ten minutes and can be used
+once. A new code is needed for another call. The phone joins the reserved
+LiveKit room and the agent is dispatched when it connects; creating a code alone
+does not start a call.
+
+For devices to connect over the internet, serve the frontend over HTTPS and set
+`LIVEKIT_URL` to a publicly reachable secure LiveKit endpoint (`wss://`), with
+matching credentials on the API and worker. The phone must be able to reach the
+LiveKit server and its media ports. The default `ws://127.0.0.1:7880` is local
+to each device and will not connect a phone to the laptop's LiveKit server.
+The frontend server must also be able to reach the API via `API_URL`.
+The code-creation endpoint reserves a name; it does not verify LiveKit or the
+speech providers until the phone attempts to join.
+
 The dashboard now supports a room-based, continuous conversation:
 
 ```text
