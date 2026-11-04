@@ -3,7 +3,6 @@ import FooterGradient from "../../components/FooterGradient";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 export default function GetStarted() {
   return (
@@ -11,12 +10,9 @@ export default function GetStarted() {
       <CuelumeSounds />
       <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
         <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
-        <Link href="/" className="home-pill home-pill-quiet nav-back" data-cuelume-tap="">Back</Link>
+        <a href="/" className="home-pill home-pill-quiet nav-back" data-cuelume-tap="">Back</a>
       </nav>
       <div className="relative z-10 flex w-full max-w-xs -translate-y-[clamp(2rem,8vh,6rem)] flex-col items-center gap-4">
-        <a href="/join" data-cuelume-tap="" className={cn(buttonVariants({ variant: "secondary" }), "h-10 w-full rounded-full bg-[#f3f3f3] text-[#343433]")}>
-          join with QR or room number
-        </a>
         <label htmlFor="mobile" className="w-full text-sm text-[#343433]">enter number you want to call with</label>
         <Input
           id="mobile"
