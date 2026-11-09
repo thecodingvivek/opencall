@@ -5,7 +5,10 @@ livekit-plugins-gnani==1.8.8
 livekit-agents[codecs]==1.8.8
 aiohttp>=3.10,<4.0
 python-multipart>=0.0.20,<1.0
-tinydb>=4.8,<5.0
+psycopg[binary,pool]==3.3.8
+psycopg-pool==3.3.3
+firebase-admin==7.7.0
+dnspython==2.8.0
 livekit-plugins-silero==1.8.8
 livekit-plugins-openai==1.8.8
 -r observability/requirements.txt

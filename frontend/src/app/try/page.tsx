@@ -1,5 +1,11 @@
 import { TryCall } from "@/components/try/TryCall";
+import { currentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function TryPage() {
+export const instant = false;
+export default async function TryPage() {
+  const user = await currentUser();
+  if (!user) redirect("/");
+  if (!user.onboarded) redirect("/get-started");
   return <TryCall />;
 }

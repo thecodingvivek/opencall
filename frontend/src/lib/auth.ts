@@ -3,11 +3,11 @@ import { cookies } from "next/headers";
 
 export const backendUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
-export async function currentUser(): Promise<{ username: string; display_name: string } | null> {
-  const session = (await cookies()).get("opencall_session")?.value;
+export async function currentUser(): Promise<{ username: string; display_name: string; onboarded: boolean } | null> {
+  const session = (await cookies()).get("firebase_session")?.value;
   if (!session) return null;
   const response = await fetch(`${backendUrl}/api/v1/auth/me`, {
-    headers: { Cookie: `opencall_session=${encodeURIComponent(session)}` },
+    headers: { Cookie: `firebase_session=${encodeURIComponent(session)}` },
     cache: "no-store", signal: AbortSignal.timeout(5000),
   });
   if (response.status === 401) return null;

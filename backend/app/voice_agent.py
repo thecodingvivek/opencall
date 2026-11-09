@@ -57,7 +57,7 @@ async def conversation(ctx: JobContext):
             await observation.finish()
 
     ctx.add_shutdown_callback(close_and_update_description)
-    entry = PhonebookEntry(username="unknown") if guest else store.get(username)
+    entry = PhonebookEntry(username="unknown") if guest else await asyncio.to_thread(store.get, username)
 
     session = AgentSession(
         stt=gnani.STT(api_key=settings.gnani_api_key.get_secret_value(),

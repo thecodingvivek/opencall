@@ -3,13 +3,10 @@ from functools import lru_cache
 import asyncio
 import json
 import logging
-from pathlib import Path
 
 import aiohttp
 from pydantic import BaseModel, ConfigDict, Field
-from tinydb import Query
-
-from app.core.database import database
+from app.core.postgres import get_pool
 from app.core.config import get_settings
 from observability.tracing import observed, record_llm_usage, record_outcome
 
@@ -18,6 +15,7 @@ class PhonebookEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
     username: str
     description: str = ""
+    revision: int = Field(default=0, exclude=True)
 
 
 class DescriptionUpdate(BaseModel):
@@ -26,45 +24,28 @@ class DescriptionUpdate(BaseModel):
 
 
 class PhonebookStore:
-    def __init__(self, path: Path):
-        self.path = path
-        with database(path) as db:
-            table = db.table("phonebook")
-            # Keep existing descriptions while removing the previous memory fields.
-            entries = {row["username"]: row.get("description", "") for row in table.all()}
-            for user in db.table("users").all():
-                entries.setdefault(user["username"], "")
-            simplified = [{"username": username, "description": description}
-                          for username, description in entries.items()]
-            if table.all() != simplified:
-                table.truncate()
-                table.insert_multiple(simplified)
-            if "calls" in db.tables():
-                db.drop_table("calls")
-
     def get(self, username: str) -> PhonebookEntry:
-        with database(self.path) as db:
-            entry = db.table("phonebook").get(Query().username == username)
+        with get_pool().connection() as conn:
+            entry = conn.execute("SELECT id::text AS username, phonebook AS description, phonebook_revision AS revision FROM opencall.users WHERE id=%s", (username,)).fetchone()
             if entry is None:
                 raise ValueError("Username is not in the phonebook")
             return PhonebookEntry.model_validate(entry)
 
-    def set_description(self, username: str, description: str, *, expected_description: str | None = None) -> PhonebookEntry:
-        entry = PhonebookEntry(username=username, description=description)
-        with database(self.path) as db:
-            if not db.table("users").contains(Query().username == username):
-                raise ValueError("Unknown username")
-            current = db.table("phonebook").get(Query().username == username)
-            if expected_description is not None and (not current or current["description"] != expected_description):
+    def set_description(self, username: str, description: str, *, expected_revision: int | None = None) -> PhonebookEntry:
+        DescriptionUpdate(description=description)
+        with get_pool().connection() as conn:
+            entry = conn.execute("""UPDATE opencall.users SET phonebook=%s, phonebook_revision=phonebook_revision+1, updated_at=now()
+              WHERE id=%s AND (%s::bigint IS NULL OR phonebook_revision=%s)
+              RETURNING id::text AS username, phonebook AS description, phonebook_revision AS revision""",
+              (description, username, expected_revision, expected_revision)).fetchone()
+            if not entry:
                 raise ValueError("Description changed while the update was being generated")
-            db.table("phonebook").upsert(entry.model_dump(), Query().username == username)
-        return entry
+        return PhonebookEntry.model_validate(entry)
 
 
 @lru_cache
 def get_phonebook_store() -> PhonebookStore:
-    from app.services.auth import get_auth_store
-    return PhonebookStore(get_auth_store().path)
+    return PhonebookStore()
 
 
 @observed("phonebook.generate_description", kind="LLM")
@@ -116,7 +97,7 @@ async def update_description_after_session(store: PhonebookStore, username: str,
         description = await generate_description(entry.description, text)
         if description and description != entry.description:
             await asyncio.to_thread(store.set_description, username, description,
-                                    expected_description=entry.description)
+                                    expected_revision=entry.revision)
             logging.getLogger(__name__).info("Phonebook description updated", extra={"username": username})
             record_outcome("updated")
         else:

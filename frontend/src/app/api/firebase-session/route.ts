@@ -1,6 +1,7 @@
 import { getAuth } from "firebase-admin/auth";
 import { NextResponse } from "next/server";
 import { getFirebaseAdminApp } from "@/lib/firebase-admin";
+import { backendUrl } from "@/lib/auth";
 
 export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
@@ -18,6 +19,11 @@ export async function POST(request: Request) {
     }
     const expiresIn = 5 * 24 * 60 * 60 * 1000;
     const session = await auth.createSessionCookie(idToken, { expiresIn });
+    const synced = await fetch(`${backendUrl}/api/v1/auth/me`, {
+      headers: { Cookie: `firebase_session=${encodeURIComponent(session)}` },
+      cache: "no-store", signal: AbortSignal.timeout(15000),
+    });
+    if (!synced.ok) return NextResponse.json({ error: "Account sync unavailable" }, { status: 503 });
     const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
     response.cookies.set("firebase_session", session, {
       httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: expiresIn / 1000,

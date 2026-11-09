@@ -13,3 +13,6 @@ CREATE TABLE IF NOT EXISTS opencall.users (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (phone_number IS NULL OR generated_phone_identifier IS NULL)
 );
+REVOKE ALL ON SCHEMA opencall FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON opencall.users FROM PUBLIC, anon, authenticated;
+ALTER TABLE opencall.users ENABLE ROW LEVEL SECURITY;

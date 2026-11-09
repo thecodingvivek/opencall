@@ -1,65 +1,57 @@
 from typing import Annotated
+from secrets import token_hex
+import re
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from firebase_admin import auth as firebase_auth
 
-from app.services.auth import AuthStore, COOKIE_NAME, SESSION_SECONDS, get_auth_store
+from app.core.postgres import get_pool
+from app.services.auth import sync_user, verify_session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-Store = Annotated[AuthStore, Depends(get_auth_store)]
-Session = Annotated[str | None, Cookie(alias=COOKIE_NAME)]
 
 
-class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=1, max_length=256)
-
-
-class UserResponse(BaseModel):
-    username: str
-    display_name: str
-
-
-def require_user(store: Store, session: Session = None) -> dict:
-    user = store.current_user(session) if session else None
-    if user is None:
-        raise HTTPException(401, "Please log in", headers={"Cache-Control": "no-store"})
-    return user
+def require_user(session: Annotated[str | None, Cookie(alias="firebase_session")] = None) -> dict:
+    if not session:
+        raise HTTPException(401, "Please sign in")
+    try:
+        claims = verify_session(session)
+    except (firebase_auth.InvalidSessionCookieError, firebase_auth.ExpiredSessionCookieError,
+            firebase_auth.RevokedSessionCookieError, ValueError):
+        raise HTTPException(401, "Invalid or expired sign-in") from None
+    except Exception:
+        raise HTTPException(503, "Sign-in service is unavailable") from None
+    try:
+        return sync_user(claims)
+    except Exception:
+        raise HTTPException(503, "Account service is unavailable") from None
 
 
 CurrentUser = Annotated[dict, Depends(require_user)]
 
 
-@router.post("/guest", response_model=UserResponse)
-def guest(response: Response, store: Store, session: Session = None):
-    user = store.current_user(session) if session else None
-    if user is None:
-        token, user = store.create_guest()
-        response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax", max_age=SESSION_SECONDS)
-    response.headers["Cache-Control"] = "no-store"
-    return user
-
-
-@router.post("/login", response_model=UserResponse)
-def login(payload: LoginRequest, response: Response, store: Store):
-    result = store.login(payload.username, payload.password)
-    if result is None:
-        raise HTTPException(401, "Invalid username or password", headers={"Cache-Control": "no-store"})
-    token, user = result
-    response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax", max_age=SESSION_SECONDS)
-    response.headers["Cache-Control"] = "no-store"
-    return user
-
-
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 def me(response: Response, user: CurrentUser):
     response.headers["Cache-Control"] = "no-store"
     return user
 
 
-@router.post("/logout", status_code=204)
-def logout(response: Response, store: Store, session: Session = None):
-    if session:
-        store.logout(session)
-    response.delete_cookie(COOKIE_NAME, httponly=True, samesite="lax")
-    response.headers["Cache-Control"] = "no-store"
+class Onboarding(BaseModel):
+    phone_number: str | None = None
+
+
+@router.post("/onboarding")
+def onboarding(payload: Onboarding, user: CurrentUser):
+    phone = payload.phone_number.strip() if payload.phone_number else None
+    if phone and not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone):
+        raise HTTPException(422, "Use an international number starting with + and country code")
+    try:
+        with get_pool().connection() as conn:
+            if phone:
+                conn.execute("UPDATE opencall.users SET phone_number=%s, phone_verified=false, generated_phone_identifier=NULL, updated_at=now() WHERE id=%s", (phone, user["username"]))
+            else:
+                conn.execute("UPDATE opencall.users SET generated_phone_identifier=COALESCE(generated_phone_identifier, %s), updated_at=now() WHERE id=%s AND phone_number IS NULL", ("placeholder-" + token_hex(16), user["username"]))
+        return {"ok": True}
+    except Exception:
+        raise HTTPException(503, "Account service is unavailable") from None

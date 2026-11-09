@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,7 +14,9 @@ class Settings(BaseSettings):
 
     app_name: str = "OpenCall API"
     debug: bool = False
-    tinydb_path: Path = Path(__file__).resolve().parents[2] / "data" / "opencall.json"
+    database_url: SecretStr | None = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "URL"))
+    database_ssl_root_cert: Path | None = None
+    firebase_service_account_path: Path = Path(__file__).resolve().parents[2] / "service.json"
     gnani_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"

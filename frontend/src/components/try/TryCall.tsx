@@ -51,13 +51,8 @@ export function TryCall() {
         const response = await fetch("/api/conversation/phonebook", { cache: "no-store" });
         if (cancelled) return;
         if (response.status === 401) {
-          const guest = await fetch("/api/auth/guest", { method: "POST" });
-          if (!guest.ok) throw new Error("Could not create guest session");
-          const entry = await fetch("/api/conversation/phonebook", { cache: "no-store" });
-          if (!entry.ok) throw new Error("Could not load guest phonebook");
-          const data = await entry.json();
-          if (!cancelled) setPhonebook(typeof data.username === "string" && typeof data.description === "string"
-            ? { status: "ready", username: data.username, description: data.description } : { status: "error" });
+          window.location.assign("/");
+          return;
         }
         else if (!response.ok) setPhonebook({ status: "error" });
         else {

@@ -5,15 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
-from app.services.auth import get_auth_store
-from app.services.phonebook import get_phonebook_store
+from app.core.postgres import get_pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_auth_store()
-    get_phonebook_store()
-    yield
+    try:
+        yield
+    finally:
+        get_pool().close()
+        get_pool.cache_clear()
 
 
 def create_app() -> FastAPI:
