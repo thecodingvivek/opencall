@@ -20,7 +20,7 @@ Set `VOICE_AGENT_REMOTE=true` in the API's `backend/.env` once the cloud agent i
 
 Local settings also read `voiceagent/.env` after `backend/.env`, so cloud keys stored there are shared with the API. `VOICE_AGENT_REMOTE=true` there skips the local worker. Restart existing API/dev processes after changing these values.
 
-Current deployment: `CA_f2xynEedv2Bv`, region `ap-south` (Mumbai), dispatch name `opencall-conversation`. Cloud startup and registration were verified. A local synthetic call check was blocked before dispatch by loss of IPv6 routing to Supabase; database access from the cloud worker and real browser audio remain unverified. If the host lacks IPv6 connectivity, obtain the project's exact Session pooler URL from Supabase and update `DATABASE_URL`, then redeploy secrets.
+Current deployment: `CA_f2xynEedv2Bv`, region `ap-south` (Mumbai), dispatch name `opencall-conversation`. The Supabase session pooler is used for IPv4 connectivity. A synthetic room test verified cloud dispatch, database-backed startup and receipt of greeting audio; real browser microphone and playback remain unverified. When `backend/.env` contains `poolurl`, the helper uses it unless an explicit `DATABASE_URL` overrides it. Use `--secrets-only` to update worker secrets without rebuilding; LiveKit restarts the agent.
 
 The Dockerfile runs Python 3.13 as an unprivileged user, downloads model files during build and launches `python -m voiceagent.worker start`. Phoenix is disabled in the image by default; configure a reachable remote collector before enabling it.
 

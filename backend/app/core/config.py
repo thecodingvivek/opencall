@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     app_name: str = "OpenCall API"
     debug: bool = False
-    database_url: SecretStr | None = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "URL"))
+    database_url: SecretStr | None = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "poolurl", "URL"))
     database_ssl_root_cert: Path | None = None
     firebase_service_account_path: Path = Path(__file__).resolve().parents[2] / "service.json"
     gnani_api_key: SecretStr | None = None

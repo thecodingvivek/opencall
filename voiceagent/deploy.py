@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--region", required=True)
     parser.add_argument("--update", action="store_true")
+    parser.add_argument("--secrets-only", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     backend = dotenv_values(root / "backend/.env")
@@ -24,7 +25,7 @@ def main():
         env[key] = cloud[key]
     secrets = {key: cloud.get(key) or backend.get(key) for key in (
         "GNANI_API_KEY", "GROQ_API_KEY", "GROQ_MODEL", "CONVERSATION_MAX_SECONDS")}
-    secrets["DATABASE_URL"] = cloud.get("DATABASE_URL") or backend.get("DATABASE_URL") or backend.get("URL")
+    secrets["DATABASE_URL"] = cloud.get("DATABASE_URL") or backend.get("DATABASE_URL") or backend.get("poolurl") or backend.get("URL")
     secrets["DATABASE_SSL_ROOT_CERT"] = "/etc/secrets/prod-ca-2021.crt"
     secrets["PHOENIX_ENABLED"] = "false"
     for key in ("GNANI_API_KEY", "GROQ_API_KEY", "DATABASE_URL"):
@@ -55,8 +56,8 @@ def main():
                     raise SystemExit(f"Unexpected multiline value for {key}")
                 lines.append(f"{key}={value}")
         secret_file.write_text("\n".join(lines) + "\n")
-        command = ["lk", "--yes", "agent", "deploy" if args.update else "create"]
-        if not args.update:
+        command = ["lk", "--yes", "agent", "update-secrets" if args.secrets_only else "deploy" if args.update else "create"]
+        if not args.update and not args.secrets_only:
             command += ["--region", args.region]
         command += ["--secrets-file", str(secret_file), "--secret-mount", str(certificate)]
         result = subprocess.run(command, cwd=build, env=env)
