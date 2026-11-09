@@ -16,9 +16,7 @@ PYTHONPATH=backend backend/.venv-voice/bin/python -m voiceagent.worker dev
 
 Authenticate with `lk cloud auth` or provide project credentials in ignored `voiceagent/.env`, then use the deployment helper below. The helper isolates Python files from the Node project at the root. The dispatch name is `opencall-conversation`; configure the FastAPI backend with credentials for that same LiveKit project. API/frontend hosting is separate from agent deployment.
 
-Set `VOICE_AGENT_REMOTE=true` in the API's `backend/.env` once the cloud agent is healthy, so `bun run dev` does not register a second local worker alongside the cloud worker. Set the API's `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` to that cloud project.
-
-Local settings also read `voiceagent/.env` after `backend/.env`, so cloud keys stored there are shared with the API. `VOICE_AGENT_REMOTE=true` there skips the local worker. Restart existing API/dev processes after changing these values.
+`bun run dev` always uses the local LiveKit server and laptop worker. It does not load `voiceagent/.env`. For a production API, set `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` in the API host's environment to the same cloud project; deploy the worker separately to LiveKit Cloud. The deployment helper reads `voiceagent/.env` only for deployment. Restart existing processes after changing configuration.
 
 Current deployment: `CA_f2xynEedv2Bv`, region `ap-south` (Mumbai), dispatch name `opencall-conversation`. The Supabase session pooler is used for IPv4 connectivity. A synthetic room test verified cloud dispatch, database-backed startup and receipt of greeting audio; real browser microphone and playback remain unverified. When `backend/.env` contains `poolurl`, the helper uses it unless an explicit `DATABASE_URL` overrides it. Use `--secrets-only` to update worker secrets without rebuilding; LiveKit restarts the agent.
 

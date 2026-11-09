@@ -6,6 +6,9 @@ const root = resolve(import.meta.dir, "..");
 const backend = resolve(root, "backend");
 const frontend = resolve(root, "frontend");
 const python = resolve(backend, ".venv-voice/bin/python");
+const localEnv = { ...process.env, PYTHONUNBUFFERED: "1", PYTHONPATH: `${root}:${backend}`,
+  LIVEKIT_URL: "ws://127.0.0.1:7880", LIVEKIT_API_KEY: "devkey", LIVEKIT_API_SECRET: "secret",
+  VOICE_AGENT_REMOTE: "false" };
 const pidFile = resolve(backend, "data/dev.pid");
 const children = new Set<ReturnType<typeof Bun.spawn>>();
 let stopping = false;
@@ -60,7 +63,7 @@ async function service(name: string, command: string[], cwd: string, ready: () =
     registered = !worker;
     console.log(`[dev] Starting ${name}…`);
     const child = Bun.spawn(command, {
-      cwd, env: { ...process.env, PYTHONUNBUFFERED: "1", PYTHONPATH: `${root}:${backend}` },
+      cwd, env: localEnv,
       stdout: worker ? "pipe" : "inherit", stderr: worker ? "pipe" : "inherit",
     });
     current = child;
@@ -117,7 +120,7 @@ async function main() {
       "import json", "from app.core.config import get_settings", "s=get_settings()",
       "from observability.config import get_observability_settings", "o=get_observability_settings()",
       "print(json.dumps({'url':s.livekit_url,'worker_port':s.voice_worker_port,'remote_agent':s.voice_agent_remote,'providers':bool(s.gnani_api_key and s.groq_api_key),'dev_keys':s.livekit_api_key=='devkey' and s.livekit_api_secret.get_secret_value()=='secret','phoenix':o.enabled,'phoenix_port':o.port,'collector':o.collector_endpoint}))",
-    ].join(";")], { cwd: backend });
+    ].join(";")], { cwd: backend, env: localEnv });
     if (result.exitCode !== 0) throw new Error("Cannot load backend settings. Install backend/requirements.txt in .venv-voice.");
     const config = JSON.parse(result.stdout.toString());
     if (!config.providers) throw new Error("Set GNANI_API_KEY and GROQ_API_KEY in backend/.env.");
@@ -146,7 +149,7 @@ async function main() {
     await service("API", [python, "-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"], backend,
       () => healthy("http://127.0.0.1:8000/api/v1/health"), 8000);
     await service("frontend", ["bun", "run", "dev:frontend"], frontend,
-      () => healthy("http://localhost:3000/login"), 3000);
+      () => healthy("http://localhost:3000/"), 3000);
     console.log("\n[dev] OpenCall ready: http://localhost:3000 — keep this terminal running. Ctrl+C stops managed services.\n");
     if (config.phoenix) console.log(`[dev] Phoenix traces: ${collector.origin}\n`);
     await new Promise(() => { setInterval(() => {}, 1000); });
