@@ -60,7 +60,7 @@ export function TryCall() {
         else {
           const data = await response.json();
           if (version === refreshGeneration.current) setPhonebook(typeof data.username === "string" && typeof data.description === "string"
-            ? { status: "ready", phoneNumber: typeof data.phone_number === "string" ? data.phone_number : null, description: data.description } : { status: "error" });
+            ? { status: "ready", phoneNumber: typeof data.generated_phone_identifier === "string" ? data.generated_phone_identifier : typeof data.phone_number === "string" ? data.phone_number : null, description: data.description } : { status: "error" });
         }
       } catch {
         if (version === refreshGeneration.current) setPhonebook({ status: "error" });
