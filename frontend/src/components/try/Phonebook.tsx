@@ -6,7 +6,7 @@ export function Phonebook({ phonebook }: { phonebook: PhonebookState }) {
   return (
     <section aria-label="Phonebook" className="flex min-w-0 items-center px-6">
       <div className="mx-auto w-full max-w-sm text-left">
-        <div className="relative mb-8 flex h-24 w-full items-end justify-center gap-2 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7]">
+        <div className="relative mb-8 flex h-24 w-full items-end justify-start gap-2 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] pl-4">
           <p className="absolute left-4 top-3 text-xs font-semibold uppercase tracking-wider text-[#777]">Subagents and jobs</p>
           {["#8ee6c5", "#ffad55", "#91dfe8", "#f7a3cd"].map((color, index) => <svg key={color} className="h-10 w-auto" viewBox="0 0 70 67" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
             <defs>
