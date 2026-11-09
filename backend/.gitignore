@@ -5,6 +5,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+service.json
 .pytest_cache/
 .ruff_cache/
 data/

@@ -65,6 +65,22 @@ body {
   -webkit-text-stroke: 0.3px currentColor;
 }
 
+.orb-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+}
+
+.orb-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image: linear-gradient(#ffffff40 1px, transparent 1px), linear-gradient(90deg, #ffffff40 1px, transparent 1px);
+  background-size: 20% 20%;
+}
 
  .home-pill {
   position: relative;

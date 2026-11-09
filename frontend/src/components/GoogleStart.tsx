@@ -1,0 +1,56 @@
+"use client";
+
+import { getApps, initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, inMemoryPersistence, setPersistence, signInWithPopup, signOut } from "firebase/auth";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+const config = {
+  apiKey: "AIzaSyARo01cf7wL85vNa1smTbyAwCRPRPeYjTw",
+  authDomain: "opencall-62354.firebaseapp.com",
+  projectId: "opencall-62354",
+  storageBucket: "opencall-62354.firebasestorage.app",
+  messagingSenderId: "505673443999",
+  appId: "1:505673443999:web:79b3d462b4f149427450aa",
+};
+
+export default function GoogleStart() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function start() {
+    setBusy(true);
+    setError("");
+    try {
+      const auth = getAuth(getApps()[0] ?? initializeApp(config));
+      await setPersistence(auth, inMemoryPersistence);
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const idToken = await result.user.getIdToken();
+      const response = await fetch("/api/firebase-session", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!response.ok) throw new Error("Could not create a session. Please try again.");
+      await signOut(auth);
+      router.push("/get-started");
+    } catch (err) {
+      console.error("Google sign-in failed", err);
+      setError("Google sign-in failed. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  return <div className="flex flex-col items-center gap-2">
+    <button type="button" onClick={start} disabled={busy} className="home-pill inline-flex items-center gap-2 cursor-pointer disabled:opacity-60" data-cuelume-tap="">
+      <svg aria-hidden="true" className="size-4" viewBox="0 0 24 24" fill="none">
+        <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.87c2.27-2.09 3.57-5.17 3.57-8.64Z" />
+        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.13 0-5.79-2.11-6.74-4.95H1.26v3.09A12 12 0 0 0 12 24Z" />
+        <path fill="#FBBC05" d="M5.26 14.3A7.2 7.2 0 0 1 4.88 12c0-.8.14-1.57.38-2.3V6.61H1.26A12 12 0 0 0 0 12c0 1.94.46 3.77 1.26 5.39l4-3.09Z" />
+        <path fill="#EA4335" d="M12 4.75c1.76 0 3.34.61 4.59 1.81l3.44-3.44C17.95 1.18 15.24 0 12 0A12 12 0 0 0 1.26 6.61l4 3.09C6.21 6.86 8.87 4.75 12 4.75Z" />
+      </svg>
+      <span>{busy ? "SIGNING IN…" : "GET STARTED"}</span>
+    </button>
+    {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+  </div>;
+}
