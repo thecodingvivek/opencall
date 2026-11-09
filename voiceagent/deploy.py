@@ -27,7 +27,6 @@ def main():
         "GNANI_API_KEY", "GROQ_API_KEY", "GROQ_MODEL", "CONVERSATION_MAX_SECONDS")}
     secrets["DATABASE_URL"] = cloud.get("DATABASE_URL") or backend.get("DATABASE_URL") or backend.get("poolurl") or backend.get("URL")
     secrets["DATABASE_SSL_ROOT_CERT"] = "/etc/secrets/prod-ca-2021.crt"
-    secrets["PHOENIX_ENABLED"] = "false"
     for key in ("GNANI_API_KEY", "GROQ_API_KEY", "DATABASE_URL"):
         if not secrets.get(key):
             raise SystemExit(f"Missing {key}")
@@ -38,7 +37,7 @@ def main():
         build = Path(temporary) / "build"
         build.mkdir()
         ignore = shutil.ignore_patterns(".env", ".env.*", "__pycache__", "*.pyc", "data", "*.crt", "service.json", ".agents")
-        for directory in ("backend/app", "backend/tools", "backend/observability", "voiceagent"):
+        for directory in ("backend/app", "backend/tools", "voiceagent"):
             shutil.copytree(root / directory, build / directory, ignore=ignore)
         shutil.copy2(root / "backend/requirements.txt", build / "backend/requirements.txt")
         shutil.copy2(root / "Dockerfile", build / "Dockerfile")

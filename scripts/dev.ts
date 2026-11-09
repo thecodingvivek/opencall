@@ -118,17 +118,11 @@ async function main() {
   try {
     const result = Bun.spawnSync([python, "-c", [
       "import json", "from app.core.config import get_settings", "s=get_settings()",
-      "from observability.config import get_observability_settings", "o=get_observability_settings()",
-      "print(json.dumps({'url':s.livekit_url,'worker_port':s.voice_worker_port,'remote_agent':s.voice_agent_remote,'providers':bool(s.gnani_api_key and s.groq_api_key),'dev_keys':s.livekit_api_key=='devkey' and s.livekit_api_secret.get_secret_value()=='secret','phoenix':o.enabled,'phoenix_port':o.port,'collector':o.collector_endpoint}))",
+      "print(json.dumps({'url':s.livekit_url,'worker_port':s.voice_worker_port,'remote_agent':s.voice_agent_remote,'providers':bool(s.gnani_api_key and s.groq_api_key),'dev_keys':s.livekit_api_key=='devkey' and s.livekit_api_secret.get_secret_value()=='secret'}))",
     ].join(";")], { cwd: backend, env: localEnv });
     if (result.exitCode !== 0) throw new Error("Cannot load backend settings. Install backend/requirements.txt in .venv-voice.");
     const config = JSON.parse(result.stdout.toString());
     if (!config.providers) throw new Error("Set GNANI_API_KEY and GROQ_API_KEY in backend/.env.");
-    const collector = new URL(config.collector);
-    if (config.phoenix && ["localhost", "127.0.0.1", "[::1]"].includes(collector.hostname)) {
-      await service("Phoenix", [python, "-m", "observability.server"], backend,
-        () => healthy(`http://127.0.0.1:${config.phoenix_port}`), config.phoenix_port);
-    }
     const url = new URL(config.url);
     if (["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
       if (!config.dev_keys || url.port !== "7880") {
@@ -151,7 +145,6 @@ async function main() {
     await service("frontend", ["bun", "run", "dev:frontend"], frontend,
       () => healthy("http://localhost:3000/"), 3000);
     console.log("\n[dev] OpenCall ready: http://localhost:3000 — keep this terminal running. Ctrl+C stops managed services.\n");
-    if (config.phoenix) console.log(`[dev] Phoenix traces: ${collector.origin}\n`);
     await new Promise(() => { setInterval(() => {}, 1000); });
   } catch (error) {
     console.error(`[dev] ${error instanceof Error ? error.message : error}`);

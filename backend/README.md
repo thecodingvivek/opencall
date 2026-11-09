@@ -249,9 +249,6 @@ The agent's conversation history is managed by LiveKit, including interrupted tu
 Agent tools, including current/forecast/historical weather, are documented in
 [tools/](tools/README.md).
 
-Agent tracing is available in [Phoenix observability](observability/README.md).
-With tracing enabled, `bun run dev` also starts Phoenix at `http://localhost:6006`.
-
 After installing backend requirements, frontend dependencies (`cd frontend && bun install`),
 and LiveKit (`brew install livekit`), start everything from one terminal:
 
@@ -260,7 +257,7 @@ and LiveKit (`brew install livekit`), start everything from one terminal:
 bun run dev
 ```
 
-This starts Phoenix (when enabled), LiveKit, the Python 3.13 voice worker,
+This starts LiveKit, the Python 3.13 voice worker,
 FastAPI, and Next.js in order.
 It waits for readiness, restarts managed processes if they exit, and reuses
 services already running. Keep this terminal open; Ctrl+C stops the processes

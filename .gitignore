@@ -5,3 +5,5 @@ __pycache__/
 **/.env
 **/.env.*
 !**/.env.example
+# Preserve any existing local Phoenix trace data after removing the integration.
+/backend/observability/data/

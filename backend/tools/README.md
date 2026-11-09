@@ -66,16 +66,6 @@ country must match. If no match exists, the assistant asks for a clearer locatio
 Only weather query parameters go to Open-Meteo. The tool does not create
 database tables or save weather results in the phonebook.
 
-## Phoenix
-
-Open `http://localhost:6006`, select `opencall`, and open a session trace.
-An executed weather lookup appears as **`tool.get_weather`**, with span kind
-**TOOL** and attribute `tool.name=get_weather`. Errors are marked on this span.
-
-Tool arguments and output text are hidden by default. Set
-`PHOENIX_CAPTURE_CONTENT=true` and restart the worker to inspect them. Tool span
-names, kinds, latency, and error status remain visible without content capture.
-
 Provider references: [forecast API](https://open-meteo.com/en/docs),
 [historical API](https://open-meteo.com/en/docs/historical-weather-api),
 [geocoding API](https://open-meteo.com/en/docs/geocoding-api).

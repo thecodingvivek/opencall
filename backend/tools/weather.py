@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 import aiohttp
 from livekit.agents import ToolError, function_tool
 
-from observability.tracing import observed
 from app.services.agent_steps import send_step
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
@@ -207,7 +206,6 @@ async def weather_data(location: str, start: str = "now", end: str | None = None
 
 
 @function_tool
-@observed("tool.get_weather", kind="TOOL")
 async def get_weather(location: str, start: str = "now", end: str | None = None) -> str:
     """Check weather for a city, e.g. Hyderabad, India. Dates/times are local to the city.
 
