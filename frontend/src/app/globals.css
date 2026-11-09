@@ -243,6 +243,11 @@ body {
   html {
     @apply font-sans;
   }
+  button:not(:disabled),
+  input:is([type="button"], [type="submit"], [type="reset"]):not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }
 
 .call-pill.call-connecting { opacity: 1; color: #666; cursor: wait; }
