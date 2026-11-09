@@ -36,6 +36,8 @@ export function TryCall() {
     return tracks.length ? new MediaStream(tracks) : null;
   }, [audioStream, agentTrack]);
   const [error, setError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
   const [phonebook, setPhonebook] = useState<PhonebookState>({ status: "loading" });
   const active = useRef<Room | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -92,6 +94,20 @@ export function TryCall() {
       const version = ++refreshGeneration.current;
       refreshTimers.current = [3000, 8000, 15000].map(delay =>
         setTimeout(() => { void refreshPhonebook(version); }, delay));
+    }
+  }
+
+  async function logout() {
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Logout failed");
+      end();
+      window.location.replace("/");
+    } catch {
+      setLogoutError("Could not log out. Please try again.");
+      setLoggingOut(false);
     }
   }
 
@@ -177,7 +193,15 @@ export function TryCall() {
       </motion.div>
       <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
         <Link href="/" className="text-base font-medium tracking-tight text-[#171717]">Opencall</Link>
-        <a href="/" className="home-pill home-pill-quiet nav-back">Back</a>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <Link href="/" className="home-pill home-pill-quiet nav-back">Back</Link>
+            <Button type="button" variant="ghost" onClick={logout} disabled={loggingOut} className="home-pill home-pill-quiet nav-back">
+              {loggingOut ? "Logging out…" : "Log out"}
+            </Button>
+          </div>
+          {logoutError && <p role="alert" className="text-xs text-red-700">{logoutError}</p>}
+        </div>
       </nav>
       <Phonebook phonebook={phonebook} />
       <section aria-label="Call" className="relative flex items-center justify-center">
