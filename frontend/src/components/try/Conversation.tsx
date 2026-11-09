@@ -94,7 +94,7 @@ function ConversationContent() {
     </div>)}
     {showSteps && <div>
       <h2 className="text-xs font-semibold uppercase tracking-wider text-[#777]">Agent</h2>
-      <p className="mt-2 text-sm text-[#777]">Thinking…</p>
+      <p className="agent-processing mt-2 w-fit text-sm" role="status">Processing…</p>
       {steps.length > 0 && <ul className="mt-2 space-y-1 text-xs text-[#999]">{steps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ul>}
     </div>}
     <div ref={bottom} />

@@ -265,6 +265,25 @@ body {
 .conversation-scroll { scrollbar-width: none; }
 .conversation-scroll::-webkit-scrollbar { display: none; }
 
+.agent-processing {
+  color: #777;
+  background: linear-gradient(100deg, #777 25%, #d2d2d2 48%, #777 70%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: agent-processing-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes agent-processing-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-processing { animation: none; background: none; -webkit-text-fill-color: currentColor; }
+}
+
 .nav-back { border-radius: 9px; }
 @supports (corner-shape: squircle) {
   .nav-back, .nav-back::before { border-radius: 12px; corner-shape: squircle; }
