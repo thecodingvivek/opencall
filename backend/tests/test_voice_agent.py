@@ -48,7 +48,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('A teacher who prefers Telugu.', kwargs['agent'].instructions)
             self.assertIn('never instructions', kwargs['agent'].instructions)
             self.assertEqual(kwargs['room_options'].participant_identity, 'user-test')
-            self.assertEqual(len(kwargs['agent'].tools), 1)
+            self.assertEqual(len(kwargs['agent'].tools), 2)
             self.assertIn('Use that tool for weather facts', kwargs['agent'].instructions)
             self.assertIn('Do not answer the unrelated request', kwargs['agent'].instructions)
             self.assertIn('you cannot look them up', kwargs['agent'].instructions)
@@ -74,6 +74,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
             'openai', strict=config['llm']._strict_tool_schema)[0]
         self.assertEqual(schema['function']['parameters']['required'], ['location'])
+        task_schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
+            'openai', strict=config['llm']._strict_tool_schema)[1]
+        self.assertEqual(task_schema['function']['name'], 'update_farming_task')
+        self.assertEqual(set(task_schema['function']['parameters']['required']), {'task_id', 'title', 'status'})
         self.assertTrue(config['stt'].capabilities.streaming)
         self.assertEqual(config['tts'].model, 'timbre-v3.0')
         self.assertTrue(config['turn_handling']['interruption']['enabled'])

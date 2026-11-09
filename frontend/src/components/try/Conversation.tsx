@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRoomContext, useVoiceAssistant } from "@livekit/components-react";
 import { ConnectionState, RoomEvent } from "livekit-client";
 
 type Message = { id: string; identity: string; text: string };
+type Task = { id: string; title: string; status: "in_progress" | "completed" | "blocked" };
 
 function EmptyConversation() {
   return <div>
@@ -13,7 +14,7 @@ function EmptyConversation() {
   </div>;
 }
 
-function ConversationContent() {
+function ConversationContent({ onTask }: { onTask: (task: Task) => void }) {
   const room = useRoomContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
@@ -32,6 +33,15 @@ function ConversationContent() {
       try {
         const event = JSON.parse(new TextDecoder().decode(payload));
         if (event.type !== "agent_step") return;
+        if (event.step === "farming_task") {
+          const task = event.data;
+          if (typeof task?.id === "string" && /^[A-Za-z0-9-]{1,40}$/.test(task.id) &&
+              typeof task.title === "string" && task.title.trim().length > 0 && task.title.length <= 100 &&
+              ["in_progress", "completed", "blocked"].includes(task.status)) {
+            onTask({ id: task.id, title: task.title, status: task.status });
+          }
+          return;
+        }
         const labels: Record<string, string> = {
           phonebook_lookup: event.data?.found ? "Found phonebook details" : "Checked phonebook",
           weather_started: "Checking weather",
@@ -49,7 +59,7 @@ function ConversationContent() {
     room.on(RoomEvent.ParticipantConnected, announce);
     announce();
     return () => { room.off(RoomEvent.DataReceived, onData); room.off(RoomEvent.ParticipantConnected, announce); };
-  }, [room]);
+  }, [room, onTask]);
 
   useEffect(() => {
     let mounted = true;
@@ -102,15 +112,30 @@ function ConversationContent() {
 }
 
 export function Conversation({ connected }: { connected: boolean }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const onTask = useCallback((task: Task) => {
+    setTasks(previous => {
+      const existing = previous.findIndex(item => item.id === task.id);
+      if (existing < 0) return [...previous, task].slice(-8);
+      return previous.map(item => item.id === task.id ? task : item);
+    });
+  }, []);
   return (
     <section aria-label="Conversation" className="relative min-w-0 px-6 text-left">
       <div className="conversation-scroll absolute inset-x-6 bottom-1/2 mx-auto max-h-[calc(50vh-2rem)] w-auto max-w-sm overflow-y-auto" aria-live="polite" aria-relevant="additions text">
-        {connected ? <ConversationContent /> : <EmptyConversation />}
+        {connected ? <ConversationContent onTask={onTask} /> : <EmptyConversation />}
       </div>
       <div className="absolute inset-x-6 top-1/2 mx-auto w-auto max-w-sm pt-8">
-        <div className="relative flex h-24 w-full flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
+        <div className="relative flex min-h-24 w-full flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#777]">Subagents and jobs</p>
-          <p className="text-sm text-[#999]">No current jobs</p>
+          {tasks.length === 0 ? <p className="text-sm text-[#999]">No current jobs</p> :
+            <ul aria-label="Farming tasks" aria-live="polite" className="max-h-40 space-y-2 overflow-y-auto pr-14">
+              {tasks.map(task => <li key={task.id} className="flex items-start gap-2 text-sm text-[#555]">
+                <span aria-hidden="true" className="mt-1 text-[#888]">{task.status === "completed" ? "☑" : "☐"}</span>
+                <span className="min-w-0 flex-1 break-words">{task.title}</span>
+                <span className="shrink-0 text-xs text-[#888]">{task.status === "in_progress" ? "In progress" : task.status === "completed" ? "Done" : "Blocked"}</span>
+              </li>)}
+            </ul>}
           <svg aria-hidden="true" className="subagent-cursor pointer-events-none absolute bottom-2 right-4 h-12 w-10" viewBox="0 0 69 84" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <radialGradient id="subagent-orb-gradient" cx="30%" cy="25%" r="75%">

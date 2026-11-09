@@ -3,6 +3,14 @@
 Tools available to the voice agent live in this folder. `AGENT_TOOLS` in
 `__init__.py` registers them with LiveKit's `Agent`.
 
+## Farming tasks: `update_farming_task`
+
+The agent can publish a short task and its `in_progress`, `completed`, or
+`blocked` status to the caller's jobs panel. Updates are session-only and are
+not persisted or delegated. The task ID stays the same across status changes.
+This tool only updates the display; it does not search for shops or perform
+other work. A fertilizer-shop request is blocked until a search tool exists.
+
 ## Weather: `get_weather`
 
 The assistant can check current weather, daily forecasts, hourly periods, and
