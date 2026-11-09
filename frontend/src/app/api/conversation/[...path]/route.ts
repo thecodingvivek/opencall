@@ -2,7 +2,8 @@ import { backendUrl } from "@/lib/auth";
 
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const path = (await context.params).path.join("/");
-  const allowed = request.method === "POST" ? path === "connect" || path === "guest-connect" : path === "phonebook";
+  const allowed = request.method === "POST" ? path === "connect" || path === "guest-connect" :
+    request.method === "GET" ? path === "phonebook" || path === "tasks" : path === "phonebook";
   if (!allowed) return Response.json({ detail: "Not found" }, { status: 404 });
   if (request.method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin) {
     return Response.json({ detail: "Invalid request origin" }, { status: 403 });

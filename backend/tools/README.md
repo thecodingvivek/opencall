@@ -7,8 +7,8 @@ Tools available to the voice agent live in this folder. `AGENT_TOOLS` in
 
 The agent records farming requests that require calling someone for information,
 such as asking a fertilizer shop about stock. Calls are currently unsupported,
-so the tool only accepts `requested`. The task appears for the current call and
-is not saved, scheduled, delegated, or acted on. Ordinary questions, weather
+so the tool only accepts `requested`. Tasks are saved to the user's account but
+are not scheduled, delegated, or acted on. Ordinary questions, weather
 lookups, advice, and searches do not create jobs.
 
 ## Weather: `get_weather`

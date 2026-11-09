@@ -5,9 +5,19 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from app.api.routes.auth import CurrentUser
 from app.services.conversation import ConnectionDetails, ConversationOptions, create_connection, ensure_voice_available
 from app.services.phonebook import DescriptionUpdate, PhonebookEntry, PhonebookStore, get_phonebook_store
+from app.services.tasks import list_tasks
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 Store = Annotated[PhonebookStore, Depends(get_phonebook_store)]
+
+
+@router.get("/tasks")
+def tasks(response: Response, user: CurrentUser):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return list_tasks(user["username"])
+    except Exception:
+        raise HTTPException(503, "Task list is unavailable") from None
 
 
 @router.post("/guest-connect", response_model=ConnectionDetails)

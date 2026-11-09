@@ -113,12 +113,36 @@ function ConversationContent({ onTask }: { onTask: (task: Task) => void }) {
 
 export function Conversation({ connected }: { connected: boolean }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskLoadState, setTaskLoadState] = useState<"loading" | "ready" | "error">("loading");
   const onTask = useCallback((task: Task) => {
     setTasks(previous => {
       const existing = previous.findIndex(item => item.id === task.id);
-      if (existing < 0) return [...previous, task].slice(-8);
+      if (existing < 0) return [task, ...previous].slice(0, 100);
       return previous.map(item => item.id === task.id ? task : item);
     });
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadTasks() {
+      try {
+        const response = await fetch("/api/conversation/tasks", { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error("Task list unavailable");
+        const data: unknown = await response.json();
+        if (!Array.isArray(data) || !data.every(task => task && typeof task.id === "string" &&
+          typeof task.title === "string" && ["requested", "in_progress", "completed", "blocked"].includes(task.status))) {
+          throw new Error("Invalid task list");
+        }
+        setTasks(previous => {
+          const live = new Map(previous.map(task => [task.id, task]));
+          return [...previous, ...(data as Task[]).filter(task => !live.has(task.id))].slice(0, 100);
+        });
+        setTaskLoadState("ready");
+      } catch {
+        if (!controller.signal.aborted) setTaskLoadState("error");
+      }
+    }
+    void loadTasks();
+    return () => controller.abort();
   }, []);
   return (
     <section aria-label="Conversation" className="relative min-w-0 px-6 text-left">
@@ -128,7 +152,7 @@ export function Conversation({ connected }: { connected: boolean }) {
       <div className="absolute inset-x-6 top-1/2 mx-auto w-auto max-w-sm pt-8">
         <div className="relative flex min-h-24 w-full flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#777]">Subagents and jobs</p>
-          {tasks.length === 0 ? <p className="text-sm text-[#999]">No current jobs</p> :
+          {tasks.length === 0 ? <p className="text-sm text-[#999]">{taskLoadState === "loading" ? "Loading jobs…" : taskLoadState === "error" ? "Jobs unavailable. Reload to try again." : "No current jobs"}</p> :
             <ul aria-label="Farming tasks" aria-live="polite" className="max-h-40 space-y-2 overflow-y-auto pr-14">
               {tasks.map(task => <li key={task.id} className="flex items-start gap-2 text-sm text-[#555]">
                 <span aria-hidden="true" className="mt-1 text-[#888]">{task.status === "completed" ? "☑" : "☐"}</span>
@@ -137,6 +161,7 @@ export function Conversation({ connected }: { connected: boolean }) {
               </li>)}
             </ul>}
           {tasks.some(task => task.status === "requested") && <p className="pr-14 text-xs text-[#888]">Calling is coming soon.</p>}
+          {tasks.length > 0 && taskLoadState === "error" && <p className="pr-14 text-xs text-[#888]">Some saved jobs may be unavailable. Reload to try again.</p>}
           <svg aria-hidden="true" className="subagent-cursor pointer-events-none absolute bottom-2 right-4 h-12 w-10" viewBox="0 0 69 84" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <radialGradient id="subagent-orb-gradient" cx="30%" cy="25%" r="75%">

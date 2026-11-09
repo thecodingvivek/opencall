@@ -27,6 +27,7 @@ values in `backend/.env`; the app also works with the defaults without this file
 - `POST /api/v1/conversation/connect` — issues room connection details (login required).
 - `GET /api/v1/conversation/phonebook` — the signed-in user's username and description.
 - `PUT /api/v1/conversation/phonebook` — updates the signed-in user's description.
+- `GET /api/v1/conversation/tasks` — returns the signed-in user's saved call requests.
 - `GET /` — app name and documentation URL.
 - `GET /api/v1/health` — returns `{"status":"ok"}` for process health.
 - `POST /api/v1/speech/transcribe` — transcribes a WAV recording through Gnani.
@@ -65,7 +66,8 @@ Users sign in with Google through Firebase. The frontend creates an HttpOnly
 Firebase session cookie, which the backend verifies before syncing the user's
 identity to the Supabase Postgres `opencall.users` table. Set `DATABASE_URL`
 and Firebase service-account configuration in `backend/.env`; see `.env.example`.
-Apply `backend/migrations/001_users.sql` to the target database before use.
+Apply `backend/migrations/001_users.sql` and `002_farming_tasks.sql` to the
+target database before use.
 The API and voice worker must connect to the same database. A user without a
 phone number receives a generated identifier; phonebook descriptions are stored
 on the user row. See [Phonebook](phonebook.md) for the API and update behavior.

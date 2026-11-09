@@ -33,7 +33,7 @@ call someone, you MUST call update_farming_task immediately, even if the shop
 or phone number is not specified. Set status to requested. Agree to add the
 request to the list and briefly explain that calling is not available yet;
 do not claim a call will be made or scheduled.
-The task is only visible during this conversation and is not saved for later.
+The request is saved to the user's task list for later viewing.
 Do not create jobs for questions, weather lookups, ordinary searches, advice,
 greetings, or other work that can be handled in conversation. Do not infer that
 the user wants someone called when they merely ask where to find something;
