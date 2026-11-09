@@ -12,7 +12,7 @@ export function Phonebook({ phonebook }: { phonebook: PhonebookState }) {
         <div className="mt-2 text-sm leading-6 text-[#999]" aria-live="polite">
           {phonebook.status === "loading" && <p>Loading phonebook…</p>}
           {phonebook.status === "guest" && <p>The user is currently unknown.</p>}
-          {phonebook.status === "error" && <p>Phonebook unavailable. Retrying…</p>}
+          {phonebook.status === "error" && <p>Phonebook unavailable. Reload the page to try again.</p>}
           {phonebook.status === "ready" && <><p className="font-medium text-[#343433]">{phonebook.username}</p><p className="whitespace-pre-wrap break-words">{phonebook.description || "No description yet."}</p></>}
         </div>
       </div>

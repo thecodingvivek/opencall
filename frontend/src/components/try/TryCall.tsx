@@ -41,15 +41,14 @@ export function TryCall() {
   const generation = useRef(0);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const refreshGeneration = useRef(0);
   const onSpeaking = useCallback(() => { if (timer.current) clearTimeout(timer.current); setStatus("active"); }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    let timeout: ReturnType<typeof setTimeout>;
-    async function refresh() {
+  const refreshPhonebook = useCallback(async (version: number) => {
       try {
         const response = await fetch("/api/conversation/phonebook", { cache: "no-store" });
-        if (cancelled) return;
+        if (version !== refreshGeneration.current) return;
         if (response.status === 401) {
           window.location.assign("/");
           return;
@@ -57,18 +56,23 @@ export function TryCall() {
         else if (!response.ok) setPhonebook({ status: "error" });
         else {
           const data = await response.json();
-          if (!cancelled) setPhonebook(typeof data.username === "string" && typeof data.description === "string"
+          if (version === refreshGeneration.current) setPhonebook(typeof data.username === "string" && typeof data.description === "string"
             ? { status: "ready", username: data.username, description: data.description } : { status: "error" });
         }
       } catch {
-        if (!cancelled) setPhonebook({ status: "error" });
-      } finally {
-        if (!cancelled) timeout = setTimeout(refresh, 3000);
+        if (version === refreshGeneration.current) setPhonebook({ status: "error" });
       }
-    }
-    void refresh();
-    return () => { cancelled = true; clearTimeout(timeout); };
   }, []);
+
+  useEffect(() => {
+    const version = ++refreshGeneration.current;
+    void refreshPhonebook(version);
+    return () => {
+      refreshGeneration.current++;
+      refreshTimers.current.forEach(clearTimeout);
+      refreshTimers.current = [];
+    };
+  }, [refreshPhonebook]);
 
   function end() {
     generation.current++;
@@ -82,6 +86,12 @@ export function TryCall() {
     setAgentTrack(null);
     setStatus("idle");
     void previous?.disconnect();
+    if (previous) {
+      refreshTimers.current.forEach(clearTimeout);
+      const version = ++refreshGeneration.current;
+      refreshTimers.current = [3000, 8000, 15000].map(delay =>
+        setTimeout(() => { void refreshPhonebook(version); }, delay));
+    }
   }
 
   useEffect(() => () => {
@@ -93,6 +103,9 @@ export function TryCall() {
 
   async function start() {
     if (busy.current || active.current) return;
+    refreshTimers.current.forEach(clearTimeout);
+    refreshTimers.current = [];
+    refreshGeneration.current++;
     busy.current = true;
     const attempt = ++generation.current;
     const controller = new AbortController();
