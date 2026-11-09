@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "error-handling-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-essentials/skills/error-handling-patterns/SKILL.md",
+      "computedHash": "7296c9e1d5f98d45e642deddfefe3e001f7514640d0260c0380d0185de379996"
+    }
+  }
+}

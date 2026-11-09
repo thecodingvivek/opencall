@@ -1,1 +1,0 @@
-"""OpenCall backend application."""
