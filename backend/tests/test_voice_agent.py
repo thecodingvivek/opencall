@@ -7,7 +7,7 @@ from livekit.agents.llm import ChatContext
 from livekit.agents.llm.tool_context import ToolContext
 
 from pydantic import SecretStr
-from app import voice_agent
+from voiceagent import worker as voice_agent
 
 
 class WorkerTests(unittest.IsolatedAsyncioTestCase):

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     livekit_api_secret: SecretStr = SecretStr("secret")
     conversation_max_seconds: int = 1800
     voice_worker_port: int = 8081
+    voice_agent_remote: bool = False
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

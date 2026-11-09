@@ -1,0 +1,2 @@
+# Shared runtime remains in backend; build from the repository root.
+-r ../backend/requirements.txt

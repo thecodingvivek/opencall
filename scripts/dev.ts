@@ -60,7 +60,7 @@ async function service(name: string, command: string[], cwd: string, ready: () =
     registered = !worker;
     console.log(`[dev] Starting ${name}…`);
     const child = Bun.spawn(command, {
-      cwd, env: { ...process.env, PYTHONUNBUFFERED: "1" },
+      cwd, env: { ...process.env, PYTHONUNBUFFERED: "1", PYTHONPATH: `${root}:${backend}` },
       stdout: worker ? "pipe" : "inherit", stderr: worker ? "pipe" : "inherit",
     });
     current = child;
@@ -116,7 +116,7 @@ async function main() {
     const result = Bun.spawnSync([python, "-c", [
       "import json", "from app.core.config import get_settings", "s=get_settings()",
       "from observability.config import get_observability_settings", "o=get_observability_settings()",
-      "print(json.dumps({'url':s.livekit_url,'worker_port':s.voice_worker_port,'providers':bool(s.gnani_api_key and s.groq_api_key),'dev_keys':s.livekit_api_key=='devkey' and s.livekit_api_secret.get_secret_value()=='secret','phoenix':o.enabled,'phoenix_port':o.port,'collector':o.collector_endpoint}))",
+      "print(json.dumps({'url':s.livekit_url,'worker_port':s.voice_worker_port,'remote_agent':s.voice_agent_remote,'providers':bool(s.gnani_api_key and s.groq_api_key),'dev_keys':s.livekit_api_key=='devkey' and s.livekit_api_secret.get_secret_value()=='secret','phoenix':o.enabled,'phoenix_port':o.port,'collector':o.collector_endpoint}))",
     ].join(";")], { cwd: backend });
     if (result.exitCode !== 0) throw new Error("Cannot load backend settings. Install backend/requirements.txt in .venv-voice.");
     const config = JSON.parse(result.stdout.toString());
@@ -136,8 +136,13 @@ async function main() {
         () => healthy("http://127.0.0.1:7880"), 7880);
     }
     const workerUrl = `http://127.0.0.1:${config.worker_port}`;
-    await service("voice worker", [python, "-m", "app.voice_agent", "dev"], backend,
-      async () => await healthy(workerUrl) && await healthy(workerUrl + "/worker", true), config.worker_port, true);
+    if (!config.remote_agent) {
+      await service("voice worker", [python, "-m", "voiceagent.worker", "dev"], backend,
+        async () => await healthy(workerUrl) && await healthy(workerUrl + "/worker", true), config.worker_port, true);
+    } else {
+      if (["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) throw new Error("VOICE_AGENT_REMOTE requires a reachable LiveKit Cloud URL.");
+      console.log("[dev] Using the remote voice agent; local worker startup skipped.");
+    }
     await service("API", [python, "-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"], backend,
       () => healthy("http://127.0.0.1:8000/api/v1/health"), 8000);
     await service("frontend", ["bun", "run", "dev:frontend"], frontend,
