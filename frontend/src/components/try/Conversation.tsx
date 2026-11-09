@@ -108,9 +108,20 @@ export function Conversation({ connected }: { connected: boolean }) {
         {connected ? <ConversationContent /> : <EmptyConversation />}
       </div>
       <div className="absolute inset-x-6 top-1/2 mx-auto w-auto max-w-sm pt-8">
-        <div className="flex h-24 w-full flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
+        <div className="relative flex h-24 w-full flex-col gap-3 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#777]">Subagents and jobs</p>
           <p className="text-sm text-[#999]">No current jobs</p>
+          <svg aria-hidden="true" className="subagent-cursor pointer-events-none absolute bottom-2 right-4 h-12 w-10" viewBox="0 0 69 84" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="subagent-orb-gradient" cx="30%" cy="25%" r="75%">
+                <stop stopColor="#fce6b5" />
+                <stop offset="0.5" stopColor="#a2cfb4" />
+                <stop offset="1" stopColor="#738dc2" />
+              </radialGradient>
+            </defs>
+            <circle cx="26" cy="38" r="12" fill="url(#subagent-orb-gradient)" />
+            <path d="M5 5 Q4 3 7 5 L43 27 Q47 30 42 31 L25 34 Q23 34 22 36 L13 49 Q10 53 9 48 Z" transform="scale(.75)" fill="#171717" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
       </div>
     </section>
