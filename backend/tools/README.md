@@ -5,11 +5,11 @@ Tools available to the voice agent live in this folder. `AGENT_TOOLS` in
 
 ## Farming tasks: `update_farming_task`
 
-The agent can publish a short task and its `in_progress`, `completed`, or
-`blocked` status to the caller's jobs panel. Updates are session-only and are
-not persisted or delegated. The task ID stays the same across status changes.
-This tool only updates the display; it does not search for shops or perform
-other work. A fertilizer-shop request is blocked until a search tool exists.
+The agent records farming requests that require calling someone for information,
+such as asking a fertilizer shop about stock. Calls are currently unsupported,
+so the tool only accepts `blocked`. The task appears for the current call and
+is not saved, scheduled, delegated, or acted on. Ordinary questions, weather
+lookups, advice, and searches do not create jobs.
 
 ## Weather: `get_weather`
 
