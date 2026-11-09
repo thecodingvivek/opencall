@@ -102,9 +102,17 @@ function ConversationContent() {
 }
 
 export function Conversation({ connected }: { connected: boolean }) {
-  return <section aria-label="Conversation" className="relative min-w-0 px-6 text-left">
-    <div className="conversation-scroll absolute inset-x-6 bottom-1/2 mx-auto max-h-[calc(50vh-2rem)] w-auto max-w-sm overflow-y-auto" aria-live="polite" aria-relevant="additions text">
-      {connected ? <ConversationContent /> : <EmptyConversation />}
-    </div>
-  </section>;
+  return (
+    <section aria-label="Conversation" className="relative min-w-0 px-6 text-left">
+      <div className="conversation-scroll absolute inset-x-6 bottom-1/2 mx-auto max-h-[calc(50vh-2rem)] w-auto max-w-sm overflow-y-auto" aria-live="polite" aria-relevant="additions text">
+        {connected ? <ConversationContent /> : <EmptyConversation />}
+      </div>
+      <div className="absolute inset-x-6 top-1/2 mx-auto w-auto max-w-sm pt-8">
+        <div className="flex h-24 w-full flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#777]">Subagents and jobs</p>
+          <p className="text-sm text-[#999]">No current jobs</p>
+        </div>
+      </div>
+    </section>
+  );
 }

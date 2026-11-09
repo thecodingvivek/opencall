@@ -6,10 +6,6 @@ export function Phonebook({ phonebook }: { phonebook: PhonebookState }) {
   return (
     <section aria-label="Phonebook" className="flex min-w-0 items-center px-6">
       <div className="mx-auto w-full max-w-sm text-left">
-        <div className="mb-8 flex h-24 w-full flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-[#f7f7f7] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#777]">Subagents and jobs</p>
-          <p className="text-sm text-[#999]">No current jobs</p>
-        </div>
         <p className="mb-8 text-xs font-semibold uppercase tracking-wider text-[#777]">Maps tool</p>
         <p className="mb-8 text-xs font-semibold uppercase tracking-wider text-[#777]">Weather tool</p>
         <h2 className="text-xs font-semibold uppercase tracking-wider text-[#777]">Phonebook</h2>
