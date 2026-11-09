@@ -1,0 +1,95 @@
+[
+  {
+    "crop": "tomato",
+    "problem": "Early blight",
+    "symptoms": "Brown leaf spots that may develop concentric rings; lesions can also appear on stems and fruit. Symptoms often begin on older or lower foliage.",
+    "cause": "Alternaria solani fungus.",
+    "fertilizer": "Avoid excessive nitrogen; the reviewed source gives no fertilizer cure.",
+    "treatment": "ICAR advises copper oxychloride or a registered metalaxyl+mancozeb product when symptoms appear. Remove severely affected lower leaves and seek local confirmation if uncertain.",
+    "dosage": "ICAR Kharif Agro-Advisory 2025 gives copper oxychloride 3 g/L or metalaxyl 4% + mancozeb 64% WP 1.5 g/L for its advisory context. Confirm the exact formulation, current registration, crop label and pre-harvest interval before use.",
+    "safety_note": "Use only products currently registered for tomato and the named disease; follow the product label, PPE, re-entry interval and pre-harvest interval. Do not mix products unless the label allows it.",
+    "region": [
+      "all"
+    ],
+    "source_url": "https://icar.gov.in/sites/default/files/Circulars/ICAR-En-Kharif-Agro-Advisories-for-Farmers-2025.pdf",
+    "knowledge_key": "icar-2025-tomato-early-blight"
+  },
+  {
+    "crop": "tomato",
+    "problem": "Blossom-end rot",
+    "symptoms": "Dark, sunken, leathery patch at the blossom end of the fruit.",
+    "cause": "Often associated with inconsistent soil moisture and calcium delivery; symptoms alone do not confirm a soil calcium deficiency.",
+    "fertilizer": "The reviewed ICAR advisory mentions calcium chloride foliar application in affected areas; assess irrigation and soil conditions first.",
+    "treatment": "Keep soil moisture more even and avoid large swings in watering. Confirm the diagnosis locally, since similar fruit damage can have other causes.",
+    "dosage": "The ICAR Kharif Agro-Advisory 2025 states calcium chloride 5 g/L foliar application in its advisory context. Check local guidance and the product label before applying.",
+    "safety_note": "Do not assume every dark fruit lesion is calcium deficiency. Follow the product label and local horticulture/KVK advice.",
+    "region": [
+      "all"
+    ],
+    "source_url": "https://icar.gov.in/sites/default/files/Circulars/ICAR-En-Kharif-Agro-Advisories-for-Farmers-2025.pdf",
+    "knowledge_key": "icar-2025-tomato-blossom-end-rot"
+  },
+  {
+    "crop": "tomato",
+    "problem": "Early blight (diagnostic description)",
+    "symptoms": "Early blight lesions on leaves, stems or fruit; leaf lesions can show characteristic concentric markings.",
+    "cause": "Alternaria blight (Alternaria solani).",
+    "fertilizer": "No fertilizer recommendation in this source.",
+    "treatment": "Use integrated disease-management guidance and confirm the diagnosis before choosing a fungicide.",
+    "dosage": "No spray dosage included in this source entry; consult a current local recommendation and the registered product label.",
+    "safety_note": "Do not diagnose from one symptom alone; seek a local agricultural expert for uncertain cases.",
+    "region": [
+      "Tamil Nadu",
+      "India"
+    ],
+    "source_url": "https://agritech.tnau.ac.in/crop_protection/tomato_diseases_2.html",
+    "knowledge_key": "tnau-tomato-early-blight-diagnosis"
+  },
+  {
+    "crop": "chilli",
+    "problem": "Leaf curl virus complex",
+    "symptoms": "Leaves curl or deform, leaves become small, internodes shorten and plants become stunted; flower buds may drop.",
+    "cause": "Viral disease commonly transmitted by whiteflies; similar symptoms can have other causes.",
+    "fertilizer": "No fertilizer cures a viral infection.",
+    "treatment": "Use healthy, disease-free seed and nursery protection; remove severely infected plants to reduce sources of infection and manage the vector using current local integrated pest-management advice.",
+    "dosage": "No pesticide dosage included; consult a local KVK/agricultural officer and use only currently registered products according to their labels.",
+    "safety_note": "The source says control measures are not known for many viral diseases. Do not claim an insecticide cures infected plants.",
+    "region": [
+      "Tamil Nadu",
+      "India"
+    ],
+    "source_url": "https://www.agritech.tnau.ac.in/crop_protection/chilli_diseases_7.html",
+    "knowledge_key": "tnau-chilli-leaf-curl-virus"
+  },
+  {
+    "crop": "rice",
+    "problem": "Blast disease",
+    "symptoms": "Small bluish-green flecks enlarge into spindle-shaped leaf spots with grey centres and dark-brown margins; black lesions can girdle nodes, and neck lesions can cause panicles to fall.",
+    "cause": "Magnaporthe oryzae (synonyms in the source include Pyricularia grisea and Magnaporthe grisea).",
+    "fertilizer": "Avoid excessive nitrogen; follow a soil-test-based, locally recommended nutrient plan.",
+    "treatment": "Use an integrated, locally recommended disease-management plan; confirm symptoms and crop stage with a local agricultural expert.",
+    "dosage": "No chemical dosage included in this entry; check the latest local advisory and the registered product label.",
+    "safety_note": "Advisories vary by region, cultivar and crop stage. Observe label precautions and pre-harvest intervals.",
+    "region": [
+      "India"
+    ],
+    "source_url": "https://www.agritech.tnau.ac.in/crop_protection/rice_diseases/rice_1.html",
+    "knowledge_key": "icar-2025-rice-blast"
+  },
+  {
+    "crop": "chilli",
+    "problem": "Fusarium wilt",
+    "symptoms": "Yellowing followed by wilting, often in patches; leaves may roll upward and inward and remain attached after wilting.",
+    "cause": "Fusarium oxysporum f. sp. capsici.",
+    "fertilizer": "No fertilizer cure is stated in this source.",
+    "treatment": "TNAU recommends resistant varieties and describes seed treatment and biological/cultural management options. Confirm diagnosis and locally suitable treatment with an expert.",
+    "dosage": "No field spray dosage included in this entry; follow current local recommendations and product labels.",
+    "safety_note": "Wilt symptoms overlap across diseases. Do not apply pesticides based only on visual symptoms.",
+    "region": [
+      "Tamil Nadu",
+      "India"
+    ],
+    "source_url": "https://agritech.tnau.ac.in/crop_protection/chilli_diseases_6.html",
+    "knowledge_key": "tnau-chilli-fusarium-wilt"
+  }
+]

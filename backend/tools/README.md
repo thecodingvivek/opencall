@@ -13,6 +13,16 @@ lookups, advice, and searches do not create jobs.
 
 ## Weather: `get_weather`
 
+## Crop guidance: `search_crop_knowledge`
+
+For crop symptoms and disease or deficiency questions, the agent retrieves the
+closest sourced records from `opencall.crop_knowledge` with pgvector cosine
+search. Query embeddings use the multilingual MiniLM model in FastEmbed. Records
+are curated in `backend/data/crop_knowledge_seed.json`; re-run the ingestion
+command in `backend/README.md` after reviewing seed changes. Each result includes
+its source URL. The agent must not treat a similarity match as a diagnosis, and
+must defer chemical use to the current registered product label and local expert.
+
 The assistant can check current weather, daily forecasts, hourly periods, and
 historical weather using Open-Meteo. No API key is required for this local setup.
 The public endpoint is for non-commercial use; see the provider's

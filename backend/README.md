@@ -66,8 +66,12 @@ Users sign in with Google through Firebase. The frontend creates an HttpOnly
 Firebase session cookie, which the backend verifies before syncing the user's
 identity to the Supabase Postgres `opencall.users` table. Set `DATABASE_URL`
 and Firebase service-account configuration in `backend/.env`; see `.env.example`.
-Apply `backend/migrations/001_users.sql` and `002_farming_tasks.sql` to the
-target database before use.
+Apply `backend/migrations/001_users.sql`, `002_farming_tasks.sql`, and
+`003_crop_knowledge.sql` to the target database. Seed the crop guidance with
+`PYTHONPATH=.:backend backend/.venv-voice/bin/python -m tools.ingest_crop_knowledge`.
+The multilingual embedding model is downloaded on first local use and preloaded
+into the LiveKit worker image. Reviewed seed records and source URLs are in
+`backend/data/crop_knowledge_seed.json`.
 The API and voice worker must connect to the same database. A user without a
 phone number receives a generated identifier; phonebook descriptions are stored
 on the user row. See [Phonebook](phonebook.md) for the API and update behavior.
