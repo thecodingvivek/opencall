@@ -9,6 +9,10 @@ from livekit.agents import (
     DEFAULT_API_CONNECT_OPTIONS, tts, utils,
 )
 
+# 400 ms of mono 16-bit PCM at 24 kHz. Buffer each synthesis stream before
+# releasing its first frames; once started, continue streaming immediately.
+STARTUP_BUFFER_MS = 400
+
 
 class ConversationTTS(tts.TTS):
     def __init__(self, *, api_key: str, voice: str, language: str):
@@ -45,6 +49,8 @@ class _AudioStream(tts.ChunkedStream):
         output_emitter.initialize(request_id=utils.shortuuid(), sample_rate=provider.sample_rate,
                                   num_channels=1, mime_type="audio/pcm", frame_size_ms=20)
         pending = b""
+        started = False
+        startup_bytes = provider.sample_rate * 2 * STARTUP_BUFFER_MS // 1000
         complete = False
         try:
             async with asyncio.timeout(self._conn_options.timeout):
@@ -74,9 +80,10 @@ class _AudioStream(tts.ChunkedStream):
                             final = data.get("type") == "complete" or body.get("is_final", False)
                         pending += audio
                         count = len(pending) - len(pending) % 2
-                        if count:
+                        if count and (started or count >= startup_bytes or final):
                             output_emitter.push(pending[:count])
                             pending = pending[count:]
+                            started = True
                         if final:
                             complete = True
                             break
