@@ -1,6 +1,7 @@
 """Per-process Postgres connections for the API and voice worker."""
 from functools import lru_cache
 import socket
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import dns.resolver
@@ -26,6 +27,9 @@ def get_pool() -> ConnectionPool:
     except socket.gaierror:
         address = str(dns.resolver.resolve(host, "AAAA", lifetime=5)[0])
     root_cert = get_settings().database_ssl_root_cert
+    local_cert = Path(__file__).resolve().parents[2] / "prod-ca-2021.crt"
+    if root_cert is None and local_cert.is_file():
+        root_cert = local_cert
     return ConnectionPool(conninfo, min_size=0, max_size=4, timeout=10, open=True,
                           kwargs={"hostaddr": address, "connect_timeout": 8, "sslmode": "verify-full", "sslrootcert": str(root_cert) if root_cert else certifi.where(),
                                   "row_factory": dict_row, "prepare_threshold": None})
