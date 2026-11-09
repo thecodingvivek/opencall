@@ -2,8 +2,6 @@ import { getAuth } from "firebase-admin/auth";
 import { NextResponse } from "next/server";
 import { getFirebaseAdminApp } from "@/lib/firebase-admin";
 
-export const runtime = "nodejs";
-
 export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
     return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
