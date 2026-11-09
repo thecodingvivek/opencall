@@ -4,10 +4,9 @@ This document explains the continuous voice conversation implemented in this
 repository: how audio flows, how a session is created and isolated, how the agent
 handles turns and interruptions, and what happens when a conversation ends.
 
-The main entry point is `/dashboard`. Click **Start conversation** once, allow
+The main entry point is `/try` after Google sign-in. Start a conversation, allow
 the microphone, and speak naturally. The assistant replies aloud and can be
-interrupted by speaking over it. The separate recording studio remains at
-`/dashboard/transcribe`.
+interrupted by speaking over it.
 
 Implementation baseline: commit `e0d676f`, reviewed on October 22, 2026.
 
@@ -19,14 +18,14 @@ Audio does not pass through the FastAPI HTTP endpoint on every turn.
 
 | Component | Responsibility | Local address or entry point |
 | --- | --- | --- |
-| Next.js frontend | Microphone, room connection, playback, controls, transcript display | `http://localhost:3000/dashboard` |
+| Next.js frontend | Microphone, room connection, playback, controls, transcript display | `http://localhost:3000/try` |
 | FastAPI API | Validate options and sign a restricted participant token | `http://127.0.0.1:8000/api/v1/conversation/connect` |
 | LiveKit server | Signaling, room membership, media routing, agent dispatch | `ws://127.0.0.1:7880` |
-| Python agent worker | Run each conversation's STT, LLM, TTS, VAD, and turn handling | `python -m app.voice_agent dev` |
+| Python agent worker | Run each conversation's STT, LLM, TTS, VAD, and turn handling | `PYTHONPATH=backend python -m voiceagent.worker dev` |
 
 ```mermaid
 flowchart LR
-    Browser[Browser dashboard] -->|Start: language and voice| API[FastAPI]
+    Browser[Browser] -->|Start: language and voice| API[FastAPI]
     API -->|Room URL and signed join token| Browser
     Browser <-->|WebRTC microphone and assistant audio| Room[LiveKit room]
     Room -->|Named agent dispatch| Worker[Python agent worker]
@@ -47,16 +46,15 @@ says. Gnani recognizes and synthesizes speech, while Groq generates the reply.
 
 | File | What it contains |
 | --- | --- |
-| [`frontend/src/app/dashboard/page.tsx`](frontend/src/app/dashboard/page.tsx) | Continuous conversation UI and browser room lifecycle |
+| [`frontend/src/components/try/TryCall.tsx`](frontend/src/components/try/TryCall.tsx) | Continuous conversation UI and browser room lifecycle |
 | [`backend/app/api/routes/conversation.py`](backend/app/api/routes/conversation.py) | `POST /api/v1/conversation/connect` |
 | [`backend/app/services/conversation.py`](backend/app/services/conversation.py) | Request schema, token grants, room configuration, dispatch metadata |
-| [`backend/app/voice_agent.py`](backend/app/voice_agent.py) | Worker registration and per-conversation `AgentSession` |
+| [`voiceagent/worker.py`](voiceagent/worker.py) | Worker registration and per-conversation `AgentSession` |
 | [`backend/app/services/realtime_speech.py`](backend/app/services/realtime_speech.py) | Timbre v3 WebSocket output adapter |
 | [`backend/app/core/config.py`](backend/app/core/config.py) | Environment-backed backend configuration |
 | [`backend/.env.example`](backend/.env.example) | Configuration template without provider credentials |
 | [`backend/tests/test_conversation.py`](backend/tests/test_conversation.py) | Token restrictions and streaming audio tests |
 | [`backend/tests/test_voice_agent.py`](backend/tests/test_voice_agent.py) | Worker initialization and interruption configuration tests |
-| [`frontend/src/app/dashboard/transcribe/page.tsx`](frontend/src/app/dashboard/transcribe/page.tsx) | Separate recording/transcription workflow |
 
 ## 3. What happens when you start
 
@@ -465,7 +463,7 @@ bun install
 bun run dev
 ```
 
-Open `http://localhost:3000/dashboard`. Use localhost or HTTPS for browser
+Open `http://localhost:3000/try`. Use localhost or HTTPS for browser
 microphone access. Allow microphone permission and use **Enable audio** if the
 browser blocks playback.
 
@@ -521,7 +519,6 @@ The implementation session recorded the following checks:
 | Backend unit/transport/worker tests in Python 3.13 | 33 passed |
 | Clean environment `pip check` | Passed |
 | Frontend ESLint and TypeScript | Passed |
-| Continuous and recording dashboard HTTP responses | Expected HTML returned |
 | Running `/api/v1/conversation/connect` | HTTP 200 with expected connection details |
 | Live Gnani WebSocket synthesis | Successful 24 kHz audio |
 | Live synthetic-audio room conversation | Worker dispatched; Gnani transcription, Groq reply, and room audio received |

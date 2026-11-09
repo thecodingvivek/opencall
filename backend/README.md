@@ -73,7 +73,7 @@ on the user row. See [Phonebook](phonebook.md) for the API and update behavior.
 ## LiveKit speech backend
 
 Speech runs through `livekit-plugins-gnani==1.8.8` and LiveKit Agents 1.8.8.
-The Next.js dashboard keeps the same HTTP endpoints. Transcription converts the
+The standalone transcription endpoint converts the
 validated WAV into a LiveKit `rtc.AudioFrame` and awaits `STT.recognize()`.
 Playback collects a LiveKit `tts.ChunkedStream` into an audio frame and returns WAV.
 Both endpoints are asynchronous; each request owns and closes its provider and
@@ -94,25 +94,22 @@ Output is mono 16-bit WAV at **44.1 kHz**, the highest rate accepted by this
 plugin release (previously 48 kHz). Input remains mono 16-bit WAV at 16 kHz.
 Requests use a 60-second provider timeout and no automatic retries.
 
-The recording endpoints use LiveKit speech classes inside FastAPI. The default
-`/dashboard` now connects to the continuous conversation worker described below;
-the recording studio remains at `/dashboard/transcribe`.
+The recording endpoints use LiveKit speech classes inside FastAPI. The `/try`
+page uses the continuous conversation worker described below.
 
 References: [Gnani LiveKit plugin](https://docs.gnani.ai/livekit/introduction),
 [Gnani TTS REST contract](https://docs.gnani.ai/api/TTS/tts-inference).
 
-## Dashboard speech to text
+## Speech-to-text API
 
-The frontend `/dashboard/transcribe` records speech and sends a multipart request to
-`POST /api/v1/speech/transcribe`. This produces text in the spoken language;
+Send a multipart request to `POST /api/v1/speech/transcribe`. This produces text in the spoken language;
 it does not translate between languages. The backend keeps the API key private.
 
 The request has two fields: `audio` (a mono, 16-bit PCM WAV file at 16 kHz) and
 `language_code` (defaults to `en-IN`). Supported language codes are `en-IN`,
 `hi-IN`, `te-IN`, `ta-IN`, `kn-IN`, `ml-IN`, `mr-IN`, `gu-IN`, `bn-IN`, and `pa-IN`.
 The backend rejects empty, malformed, incomplete, oversized (over 8 MB), and
-overlong (over 60 seconds) recordings before calling Gnani. The browser converts
-its native recording to WAV and stops recording automatically at 55 seconds.
+overlong (over 60 seconds) recordings before calling Gnani.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/speech/transcribe \
@@ -194,7 +191,7 @@ virtual environment. Live Gnani requests and browser audio remain unverified.
 
 ## Continuous voice conversations
 
-The dashboard now supports a room-based, continuous conversation:
+The `/try` page supports a room-based, continuous conversation:
 
 ```text
 Browser microphone → LiveKit room → Gnani streaming STT
@@ -280,7 +277,7 @@ bun install
 bun run dev:frontend
 ```
 
-Open `http://localhost:3000/dashboard`, log in, choose a language and voice, and click
+Open `http://localhost:3000`, sign in, choose a language and voice on `/try`, and click
 **Start conversation**. Allow the microphone. The agent greets you and then
 listens continuously. Use **Mute microphone**, **End conversation**, or
 **Enable audio** if browser autoplay is blocked. Settings are locked during a
@@ -325,7 +322,6 @@ must be verified with a real conversation.
 
 - 33 backend tests pass in the clean Python 3.13 environment; `pip check` passes.
 - Frontend ESLint and TypeScript checks pass.
-- Both dashboard pages return their expected HTML from the running development server.
 - The real `/conversation/connect` endpoint returns 200 and valid connection details.
 - A live synthetic-audio test connected to local LiveKit 1.13.10, dispatched the
   worker, received Gnani/Groq replies over room audio, and published speech during

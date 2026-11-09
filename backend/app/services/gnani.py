@@ -1,4 +1,4 @@
-"""Request-scoped LiveKit speech providers for the HTTP dashboard.
+"""Request-scoped LiveKit speech providers for the HTTP speech endpoints.
 
 The published Gnani plugin omits language from v3 TTS requests. Our
 compatibility stream supplies that field while retaining LiveKit audio handling.
