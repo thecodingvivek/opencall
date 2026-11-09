@@ -33,16 +33,22 @@ class ConversationTTS(tts.TTS):
         return "Gnani"
 
     def synthesize(self, text: str, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS):
-        return _AudioStream(provider=self, input_text=text, conn_options=conn_options)
+        # The language field is required by Timbre v3. Detect Devanagari in the
+        # generated sentence rather than using the recognition candidate list.
+        language = self._language
+        if language in {"hi-IN", "en-IN"}:
+            language = "hi-IN" if any("\u0900" <= char <= "\u097f" for char in text) else "en-IN"
+        return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=language)
 
     async def aclose(self):
         pass  # Each stream owns its WebSocket context; cancellation closes it.
 
 
 class _AudioStream(tts.ChunkedStream):
-    def __init__(self, *, provider: ConversationTTS, input_text: str, conn_options: APIConnectOptions):
+    def __init__(self, *, provider: ConversationTTS, input_text: str, conn_options: APIConnectOptions, language: str):
         super().__init__(tts=provider, input_text=input_text, conn_options=conn_options)
         self._provider = provider
+        self._language = language
 
     async def _run(self, output_emitter: tts.AudioEmitter):
         provider = self._provider
@@ -61,7 +67,7 @@ class _AudioStream(tts.ChunkedStream):
                 ) as ws:
                     await ws.send(json.dumps({
                         "text": self._input_text, "voice": provider._voice,
-                        "model": provider.model, "language": provider._language,
+                        "model": provider.model, "language": self._language,
                         "audio_config": {
                             "sample_rate": provider.sample_rate, "encoding": "linear_pcm",
                             "container": "raw", "num_channels": 1, "sample_width": 2,
