@@ -40,6 +40,13 @@ class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
         await hindi.aclose()
         await english.aclose()
 
+    async def test_indic_script_selects_synthesis_language(self):
+        provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
+        for text, language in [("వందనం రైతు", "te-IN"), ("வணக்கம்", "ta-IN"), ("નમસ્તે", "gu-IN")]:
+            stream = provider.synthesize(text)
+            self.assertEqual(stream._language, language)
+            await stream.aclose()
+
     async def run_stream(self, messages, observer=None):
         emitter = Mock()
         provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")

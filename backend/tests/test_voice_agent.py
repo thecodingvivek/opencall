@@ -11,6 +11,13 @@ from voiceagent import worker as voice_agent
 
 
 class WorkerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_turn_context_requests_caller_language(self):
+        agent = voice_agent.FarmingAgent(instructions="Help farmers")
+        context = ChatContext()
+        context.add_message(role="user", content="नमस्ते")
+        await agent.on_user_turn_completed(context, context.items[-1])
+        self.assertIn("language of the caller's latest utterance", context.items[-1].text_content)
+
     async def test_worker_connects_before_room_io_and_enables_interruptions(self):
         callbacks = []
         connected = False

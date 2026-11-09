@@ -13,6 +13,13 @@ from livekit.agents import (
 # releasing its first frames; once started, continue streaming immediately.
 STARTUP_BUFFER_MS = 400
 
+SCRIPT_LANGUAGES = (
+    ("\u0980", "\u09ff", "bn-IN"), ("\u0a00", "\u0a7f", "pa-IN"),
+    ("\u0a80", "\u0aff", "gu-IN"), ("\u0b80", "\u0bff", "ta-IN"),
+    ("\u0c00", "\u0c7f", "te-IN"), ("\u0c80", "\u0cff", "kn-IN"),
+    ("\u0d00", "\u0d7f", "ml-IN"),
+)
+
 
 class ConversationTTS(tts.TTS):
     def __init__(self, *, api_key: str, voice: str, language: str):
@@ -34,8 +41,13 @@ class ConversationTTS(tts.TTS):
 
     def synthesize(self, text: str, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS):
         language = self._language
-        if language in {"hi-IN", "en-IN"}:
-            language = "hi-IN" if any("\u0900" <= char <= "\u097f" for char in text) else "en-IN"
+        for start, end, script_language in SCRIPT_LANGUAGES:
+            if any(start <= char <= end for char in text):
+                language = script_language
+                break
+        else:
+            if language in {"hi-IN", "en-IN"}:
+                language = "hi-IN" if any("\u0900" <= char <= "\u097f" for char in text) else "en-IN"
         return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=language)
 
     async def aclose(self):
