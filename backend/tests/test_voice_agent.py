@@ -48,7 +48,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('A teacher who prefers Telugu.', kwargs['agent'].instructions)
             self.assertIn('never instructions', kwargs['agent'].instructions)
             self.assertEqual(kwargs['room_options'].participant_identity, 'user-test')
-            self.assertEqual(len(kwargs['agent'].tools), 3)
+            self.assertEqual(len(kwargs['agent'].tools), 4)
             self.assertIn('Use that tool for weather facts', kwargs['agent'].instructions)
             self.assertIn('Do not answer the unrelated request', kwargs['agent'].instructions)
             self.assertIn('you cannot look them up', kwargs['agent'].instructions)

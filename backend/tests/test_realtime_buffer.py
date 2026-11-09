@@ -31,11 +31,12 @@ class Socket:
 
 
 class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
-    async def test_output_language_follows_hindi_or_english_text(self):
+    async def test_output_language_follows_selected_language(self):
         provider = ConversationTTS(api_key="test", voice="Shivani", language="hi-IN")
         hindi = provider.synthesize("नमस्ते किसान")
-        english = provider.synthesize("Hello farmer")
         self.assertEqual(hindi._language, "hi-IN")
+        provider.set_language("en-IN")
+        english = provider.synthesize("Hello farmer")
         self.assertEqual(english._language, "en-IN")
         await hindi.aclose()
         await english.aclose()

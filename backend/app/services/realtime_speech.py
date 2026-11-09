@@ -24,6 +24,9 @@ class ConversationTTS(tts.TTS):
         self._voice = voice
         self._language = language
 
+    def set_language(self, language: str) -> None:
+        self._language = language
+
     @property
     def model(self) -> str:
         return "timbre-v3.0"
@@ -33,12 +36,7 @@ class ConversationTTS(tts.TTS):
         return "Gnani"
 
     def synthesize(self, text: str, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS):
-        # The language field is required by Timbre v3. Detect Devanagari in the
-        # generated sentence rather than using the recognition candidate list.
-        language = self._language
-        if language in {"hi-IN", "en-IN"}:
-            language = "hi-IN" if any("\u0900" <= char <= "\u097f" for char in text) else "en-IN"
-        return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=language)
+        return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=self._language)
 
     async def aclose(self):
         pass  # Each stream owns its WebSocket context; cancellation closes it.

@@ -14,6 +14,7 @@ class PhonebookEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
     username: str
     description: str = ""
+    preferred_language: str | None = None
     revision: int = Field(default=0, exclude=True)
 
 
@@ -25,7 +26,7 @@ class DescriptionUpdate(BaseModel):
 class PhonebookStore:
     def get(self, username: str) -> PhonebookEntry:
         with get_pool().connection() as conn:
-            entry = conn.execute("SELECT id::text AS username, phonebook AS description, phonebook_revision AS revision FROM opencall.users WHERE id=%s", (username,)).fetchone()
+            entry = conn.execute("SELECT id::text AS username, phonebook AS description, preferred_language, phonebook_revision AS revision FROM opencall.users WHERE id=%s", (username,)).fetchone()
             if entry is None:
                 raise ValueError("Username is not in the phonebook")
             return PhonebookEntry.model_validate(entry)
@@ -35,10 +36,20 @@ class PhonebookStore:
         with get_pool().connection() as conn:
             entry = conn.execute("""UPDATE opencall.users SET phonebook=%s, phonebook_revision=phonebook_revision+1, updated_at=now()
               WHERE id=%s AND (%s::bigint IS NULL OR phonebook_revision=%s)
-              RETURNING id::text AS username, phonebook AS description, phonebook_revision AS revision""",
+              RETURNING id::text AS username, phonebook AS description, preferred_language, phonebook_revision AS revision""",
               (description, username, expected_revision, expected_revision)).fetchone()
             if not entry:
                 raise ValueError("Description changed while the update was being generated")
+        return PhonebookEntry.model_validate(entry)
+
+    def set_preferred_language(self, username: str, language_code: str) -> PhonebookEntry:
+        with get_pool().connection() as conn:
+            entry = conn.execute("""UPDATE opencall.users SET preferred_language=%s, updated_at=now()
+              WHERE id=%s
+              RETURNING id::text AS username, phonebook AS description, preferred_language,
+                        phonebook_revision AS revision""", (language_code, username)).fetchone()
+            if not entry:
+                raise ValueError("Username is not in the phonebook")
         return PhonebookEntry.model_validate(entry)
 
 

@@ -22,7 +22,7 @@ class PhonebookStoreTests(unittest.TestCase):
         self.conn.execute.return_value.fetchone.return_value = {
             'username': 'account', 'description': 'A farmer.', 'revision': 3}
         entry = self.store.get('account')
-        self.assertEqual(entry.model_dump(), {'username': 'account', 'description': 'A farmer.'})
+        self.assertEqual(entry.model_dump(), {'username': 'account', 'description': 'A farmer.', 'preferred_language': None})
         query, params = self.conn.execute.call_args.args
         self.assertIn('WHERE id=%s', query)
         self.assertEqual(params, ('account',))
