@@ -9,8 +9,8 @@ The phonebook has one entry per username, with exactly two fields:
 }
 ```
 
-It is stored in the `phonebook` table inside `backend/data/opencall.json`.
-New accounts present at startup receive an empty description.
+It is stored in the `phonebook` column of `opencall.users` in Supabase Postgres.
+New accounts receive an empty description.
 
 ## Read and update
 
@@ -47,12 +47,8 @@ Updates take a few seconds after disconnect, so wait briefly before checking GET
 A hard kill can skip the shutdown callback. Model extraction can make mistakes.
 PUT remains available for explicit edits.
 
-## Existing local data
+## Database configuration
 
-On startup, existing descriptions are preserved and phonebook rows are reduced
-to `username` and `description`. The old `calls` table is removed. Extra account
-IDs and phone-number placeholders are removed from users; existing login sessions
-are converted to username-based sessions. No call history or summaries are retained.
-
-The API and worker must use the same `TINYDB_PATH`. Restart a running worker
-after applying this change.
+The API and worker must use the same Supabase Postgres database and apply
+`backend/migrations/001_users.sql` before use. The `phonebook_revision` column
+protects an explicit edit from being overwritten by an older generated update.

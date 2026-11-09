@@ -23,9 +23,7 @@ values in `backend/.env`; the app also works with the defaults without this file
 
 ## Endpoints
 
-- `POST /api/v1/auth/login` — validates the local account and sets a session cookie.
 - `GET /api/v1/auth/me` — returns the logged-in user, or `401`.
-- `POST /api/v1/auth/logout` — revokes the session and clears its cookie.
 - `POST /api/v1/conversation/connect` — issues room connection details (login required).
 - `GET /api/v1/conversation/phonebook` — the signed-in user's username and description.
 - `PUT /api/v1/conversation/phonebook` — updates the signed-in user's description.
@@ -61,39 +59,16 @@ origin changes. The defaults allow the local Next.js frontend on port 3000.
 For production, configure the actual frontend origins and run without `--reload`.
 The health endpoint checks only that the app responds.
 
-## Local TinyDB login
+## Authentication and database
 
-Start the API and frontend (`cd frontend` then `bun run dev`) and open
-`http://localhost:3000`. The dashboard redirects to `/login` without a valid
-session. Log in with **username `demo`** and **password `opencall123`**.
-Both dashboard pages share the session check and a **Log out** button.
-
-API startup creates `backend/data/opencall.json` and seeds the demo account
-only if it does not exist. TinyDB uses `users`, `sessions`, and `phonebook` tables. Passwords
-use salted PBKDF2-SHA256 hashes; only SHA256 hashes of random session tokens
-are stored. Sessions expire after 24 hours and survive an API restart.
-The database directory is ignored by Git. Override its location with `TINYDB_PATH`
-in `backend/.env`. To reset local data, stop the API and delete this file;
-the next startup recreates the demo account and invalidates previous sessions.
-
-The frontend proxies login/logout through `/api/auth/…`, so the browser receives
-an HttpOnly, SameSite=Lax cookie on the frontend host. The server checks this
-cookie against `/api/v1/auth/me` before rendering the dashboard. `API_URL` can
-override the frontend server's backend address; it falls back to
-`NEXT_PUBLIC_API_URL`, then `http://127.0.0.1:8000`.
-
-Conversation endpoints require a valid session. The recording speech API routes
-still accept requests without a session. The demo credentials are public,
-cookies permit local HTTP, and there is no login rate limit.
-
-The API and voice worker share TinyDB through `app/core/database.py`. Transactions
-use a process lock plus a filesystem lock and atomically replace the JSON file
-after all table updates. Run them on the **same machine and local filesystem**,
-using the same absolute `TINYDB_PATH`; other tools must use this wrapper too.
-Direct concurrent TinyDB access is unsafe, as described in
-[TinyDB's storage guidance](https://tinydb.readthedocs.io/en/latest/usage.html#remarks-on-storage).
-
-See [Phonebook](phonebook.md) for the username/description schema and API examples.
+Users sign in with Google through Firebase. The frontend creates an HttpOnly
+Firebase session cookie, which the backend verifies before syncing the user's
+identity to the Supabase Postgres `opencall.users` table. Set `DATABASE_URL`
+and Firebase service-account configuration in `backend/.env`; see `.env.example`.
+Apply `backend/migrations/001_users.sql` to the target database before use.
+The API and voice worker must connect to the same database. A user without a
+phone number receives a generated identifier; phonebook descriptions are stored
+on the user row. See [Phonebook](phonebook.md) for the API and update behavior.
 
 ## LiveKit speech backend
 
@@ -328,7 +303,7 @@ Each call creates a unique room identity and signs a 10-minute join token,
 restricted to that room and microphone publication. The token embeds explicit
 worker dispatch to `opencall-conversation` with the validated voice/language and
 the authenticated username. The worker reads that username’s description from
-TinyDB. The browser calls the
+Supabase Postgres. The browser calls the
 same-origin `/api/conversation/connect` proxy to forward its session cookie.
 LiveKit dispatches the worker when the participant joins. Provider keys and the
 LiveKit API secret never reach the browser. Token expiry limits joining; the
@@ -338,9 +313,7 @@ worker's duration limit ends an already connected conversation.
 chat model available to your account. A real LiveKit Cloud deployment can use
 `LIVEKIT_URL=wss://...`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` from that
 project, with the backend and worker configured identically. The local development
-key/secret are only for the loopback server. Conversation tokens are now protected
-by the local demo login. Add real account provisioning, production cookie settings,
-and per-user quotas/rate limits before exposing the service publicly.
+key/secret are only for the loopback server. Conversation tokens require a verified Firebase session.
 
 Continuous conversation requires all four processes (room server, API, worker,
 frontend). A passing health endpoint or issued token does not prove a worker has

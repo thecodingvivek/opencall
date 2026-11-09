@@ -131,7 +131,7 @@ does not assume a permanently dedicated operating-system process for each user.
 
 LiveKit's `AgentSession` manages the active chat context and feeds it to the LLM.
 This lets later turns refer to earlier conversation in the same running session.
-The application stores a simple phonebook in TinyDB. Each entry contains only
+The application stores phonebook descriptions in Supabase Postgres. The API exposes
 `username` and `description`. The login session identifies the username, which
 is passed to the worker in signed agent dispatch metadata. The worker loads that
 username's description before starting the assistant.
