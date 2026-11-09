@@ -2,7 +2,7 @@
 
 import { getApps, initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, inMemoryPersistence, setPersistence, signInWithPopup, signOut } from "firebase/auth";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const config = {
@@ -18,8 +18,29 @@ export default function GoogleStart() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [session, setSession] = useState<"checking" | "signed-in" | "signed-out" | "unavailable">("checking");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/firebase-session", { cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error("Session check failed");
+        return response.json();
+      })
+      .then(data => { if (active) setSession(data.authenticated ? "signed-in" : "signed-out"); })
+      .catch(() => { if (active) setSession("unavailable"); });
+    return () => { active = false; };
+  }, []);
 
   async function start() {
+    if (session === "signed-in") {
+      router.push("/get-started");
+      return;
+    }
+    if (session === "unavailable") {
+      setError("Login service is unavailable. Please try again later.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -42,7 +63,7 @@ export default function GoogleStart() {
   }
 
   return <div className="flex flex-col items-center gap-2">
-    <button type="button" onClick={start} disabled={busy} className="home-pill inline-flex items-center gap-2 cursor-pointer disabled:opacity-60" data-cuelume-tap="">
+    <button type="button" onClick={start} disabled={busy || session === "checking"} className="home-pill inline-flex items-center gap-2 cursor-pointer disabled:opacity-60" data-cuelume-tap="">
       <svg aria-hidden="true" className="size-4" viewBox="0 0 24 24" fill="none">
         <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.87c2.27-2.09 3.57-5.17 3.57-8.64Z" />
         <path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.13 0-5.79-2.11-6.74-4.95H1.26v3.09A12 12 0 0 0 12 24Z" />

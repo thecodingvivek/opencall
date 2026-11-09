@@ -1,7 +1,16 @@
 import { getAuth } from "firebase-admin/auth";
 import { NextResponse } from "next/server";
 import { getFirebaseAdminApp } from "@/lib/firebase-admin";
-import { backendUrl } from "@/lib/auth";
+import { backendUrl, currentUser } from "@/lib/auth";
+
+export async function GET() {
+  try {
+    const user = await currentUser();
+    return NextResponse.json({ authenticated: !!user }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Login service unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+}
 
 export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
