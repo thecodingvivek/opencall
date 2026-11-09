@@ -5,7 +5,7 @@ import { useRoomContext, useVoiceAssistant } from "@livekit/components-react";
 import { ConnectionState, RoomEvent } from "livekit-client";
 
 type Message = { id: string; identity: string; text: string };
-type Task = { id: string; title: string; status: "in_progress" | "completed" | "blocked" };
+type Task = { id: string; title: string; status: "requested" | "in_progress" | "completed" | "blocked" };
 
 function EmptyConversation() {
   return <div>
@@ -37,7 +37,7 @@ function ConversationContent({ onTask }: { onTask: (task: Task) => void }) {
           const task = event.data;
           if (typeof task?.id === "string" && /^[A-Za-z0-9-]{1,40}$/.test(task.id) &&
               typeof task.title === "string" && task.title.trim().length > 0 && task.title.length <= 100 &&
-              ["in_progress", "completed", "blocked"].includes(task.status)) {
+              ["requested", "in_progress", "completed", "blocked"].includes(task.status)) {
             onTask({ id: task.id, title: task.title, status: task.status });
           }
           return;
@@ -133,9 +133,10 @@ export function Conversation({ connected }: { connected: boolean }) {
               {tasks.map(task => <li key={task.id} className="flex items-start gap-2 text-sm text-[#555]">
                 <span aria-hidden="true" className="mt-1 text-[#888]">{task.status === "completed" ? "☑" : "☐"}</span>
                 <span className="min-w-0 flex-1 break-words">{task.title}</span>
-                <span className="shrink-0 text-xs text-[#888]">{task.status === "in_progress" ? "In progress" : task.status === "completed" ? "Done" : "Blocked"}</span>
+                <span className="shrink-0 text-xs text-[#888]">{task.status === "requested" ? "Requested" : task.status === "in_progress" ? "In progress" : task.status === "completed" ? "Done" : "Blocked"}</span>
               </li>)}
             </ul>}
+          {tasks.some(task => task.status === "requested") && <p className="pr-14 text-xs text-[#888]">Calling is coming soon.</p>}
           <svg aria-hidden="true" className="subagent-cursor pointer-events-none absolute bottom-2 right-4 h-12 w-10" viewBox="0 0 69 84" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <radialGradient id="subagent-orb-gradient" cx="30%" cy="25%" r="75%">
