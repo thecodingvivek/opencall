@@ -12,7 +12,7 @@ FIELDS = ("crop", "problem", "symptoms", "cause", "fertilizer", "treatment", "do
 
 
 def passage(row: dict) -> str:
-    return "\n".join(f"{field}: {row[field]}" for field in FIELDS) + "\nregion: " + ", ".join(row["region"])
+    return "\n".join(f"{field}: {row[field]}" for field in ("crop", "problem", "symptoms", "cause"))
 
 
 def vector_literal(values) -> str:
@@ -28,7 +28,6 @@ def ingest() -> int:
     vectors = list(model.embed([passage(row) for row in rows]))
     with get_pool().connection() as conn:
         with conn.transaction():
-            conn.execute("DELETE FROM opencall.crop_knowledge WHERE knowledge_key LIKE 'seed-v1:%'")
             for row, vector in zip(rows, vectors, strict=True):
                 conn.execute("""
                     INSERT INTO opencall.crop_knowledge

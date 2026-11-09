@@ -91,5 +91,35 @@
     ],
     "source_url": "https://agritech.tnau.ac.in/crop_protection/chilli_diseases_6.html",
     "knowledge_key": "tnau-chilli-fusarium-wilt"
+  },
+  {
+    "crop": "tomato",
+    "problem": "Nitrogen deficiency",
+    "symptoms": "Older leaves turn yellowish green; shoots grow slowly and plants look spindly or pale. Severe deficiency can make the whole plant pale.",
+    "cause": "Nitrogen deficiency is a possible cause; other stresses can produce similar symptoms.",
+    "fertilizer": "Urea is a nitrogen fertilizer; confirm nutrient deficiency and local suitability before application.",
+    "treatment": "TNAU describes foliar urea for nitrogen deficiency. Obtain soil or tissue testing and local agricultural advice before choosing treatment.",
+    "dosage": "TNAU lists a 1% foliar urea spray twice at weekly intervals in its advisory. Confirm product suitability and local recommendations before use.",
+    "safety_note": "Yellow leaves alone do not confirm nitrogen deficiency. Avoid excess nitrogen and follow product labels and local expert advice.",
+    "region": [
+      "all"
+    ],
+    "source_url": "https://agritech.tnau.ac.in/horticulture/plant_nutri/tomato_nitro.html",
+    "knowledge_key": "tnau-tomato-nitrogen-deficiency"
+  },
+  {
+    "crop": "tomato",
+    "problem": "Magnesium deficiency",
+    "symptoms": "Older leaves turn yellow between veins, beginning near the margins; affected areas can become brown and withered.",
+    "cause": "Magnesium deficiency is a possible cause; similar yellowing has other causes.",
+    "fertilizer": "Magnesium sulphate supplies magnesium; soil amendments should be chosen after local soil assessment.",
+    "treatment": "TNAU describes foliar magnesium sulphate or a soil application. Confirm the deficiency with soil or tissue testing and local advice.",
+    "dosage": "TNAU lists 2% magnesium sulphate foliar spray twice at fortnightly intervals, or soil application options. Confirm local suitability and product label before use.",
+    "safety_note": "Symptoms alone do not confirm a deficiency; a soil or tissue test and local guidance help prevent inappropriate applications.",
+    "region": [
+      "all"
+    ],
+    "source_url": "https://www.agritech.tnau.ac.in/horticulture/plant_nutri/tomato_magnes.html",
+    "knowledge_key": "tnau-tomato-magnesium-deficiency"
   }
 ]
