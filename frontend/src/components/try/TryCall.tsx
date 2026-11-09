@@ -170,7 +170,7 @@ export function TryCall() {
       setRoom(next);
     } catch (cause) {
       if (active.current === next) active.current = null;
-      await next?.disconnect();
+      try { await next?.disconnect(); } catch { console.warn("Could not cleanly disconnect the call."); }
       if (generation.current === attempt) {
         end();
         setError(cause instanceof Error && cause.name === "NotAllowedError" ? "Allow microphone and audio access to start the call." : cause instanceof Error ? cause.message : "Could not start the call.");

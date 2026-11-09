@@ -161,7 +161,7 @@ async def conversation(ctx: JobContext):
     @session.on("error")
     def on_error(event):
         if not event.error.recoverable:
-            logging.getLogger(__name__).error("Conversation provider failed; ending session")
+            logging.getLogger(__name__).error("Conversation provider failed; ending session: %s", type(event.error).__name__)
             session.shutdown()
             ctx.shutdown(reason="conversation provider failed")
 

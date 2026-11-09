@@ -16,11 +16,17 @@ export async function POST(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) {
     return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
+  let body: unknown;
   try {
-    const { idToken } = await request.json();
-    if (typeof idToken !== "string" || idToken.length > 16384) {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const idToken = body && typeof body === "object" && "idToken" in body ? body.idToken : undefined;
+  if (typeof idToken !== "string" || !idToken || idToken.length > 16384) {
       return NextResponse.json({ error: "Invalid token" }, { status: 400 });
-    }
+  }
+  try {
     const auth = getAuth(getFirebaseAdminApp());
     const decoded = await auth.verifyIdToken(idToken);
     if (Date.now() / 1000 - decoded.auth_time > 300) {
@@ -39,7 +45,11 @@ export async function POST(request: Request) {
     });
     return response;
   } catch (error) {
-    console.error("Firebase session creation failed", error);
-    return NextResponse.json({ error: "Could not create session" }, { status: 401 });
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (typeof code === "string" && ["auth/argument-error", "auth/invalid-id-token", "auth/id-token-expired", "auth/id-token-revoked"].includes(code)) {
+      return NextResponse.json({ error: "Invalid or expired sign-in" }, { status: 401 });
+    }
+    console.error("Firebase session service unavailable", error instanceof Error ? error.name : "UnknownError");
+    return NextResponse.json({ error: "Login service unavailable. Please try again." }, { status: 503 });
   }
 }

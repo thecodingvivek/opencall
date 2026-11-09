@@ -78,3 +78,11 @@ class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
     async def test_incomplete_short_stream_is_rejected(self):
         with self.assertRaises(APIConnectionError):
             await self.run_stream([message(b"\0\0" * 100)])
+
+    async def test_network_failure_is_reported_as_connection_error(self):
+        provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
+        stream = provider.synthesize("Hello", conn_options=APIConnectOptions(max_retry=0))
+        with patch("app.services.realtime_speech.websockets.connect", side_effect=OSError("network unavailable")):
+            with self.assertRaises(APIConnectionError):
+                await stream._run(Mock())
+        await stream.aclose()

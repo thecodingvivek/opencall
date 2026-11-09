@@ -19,7 +19,8 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       status: response.status,
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
-  } catch {
+  } catch (error) {
+    console.error("Conversation service request failed", path, error instanceof Error ? error.name : "UnknownError");
     return Response.json({ detail: "Cannot reach the conversation service. Check that the backend is running." },
       { status: 503, headers: { "Cache-Control": "no-store" } });
   }

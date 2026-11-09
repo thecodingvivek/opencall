@@ -73,6 +73,7 @@ class SpeechTests(unittest.TestCase):
         self.recognize.side_effect = Exception('private provider details')
         response = self.upload()
         self.assertEqual(response.status_code, 502)
+        self.assertTrue(response.headers.get('X-API-Request-ID'))
         self.assertNotIn('private', response.text)
 
     def test_empty_transcript_is_valid(self):

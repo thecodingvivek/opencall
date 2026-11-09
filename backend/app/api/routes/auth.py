@@ -1,5 +1,6 @@
 from typing import Annotated
 import re
+import logging
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from app.core.postgres import get_pool
 from app.services.auth import sync_user, verify_session, with_phone_identifier
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 def require_user(session: Annotated[str | None, Cookie(alias="firebase_session")] = None) -> dict:
@@ -19,11 +21,13 @@ def require_user(session: Annotated[str | None, Cookie(alias="firebase_session")
     except (firebase_auth.InvalidSessionCookieError, firebase_auth.ExpiredSessionCookieError,
             firebase_auth.RevokedSessionCookieError, ValueError):
         raise HTTPException(401, "Invalid or expired sign-in") from None
-    except Exception:
+    except Exception as error:
+        logger.warning("Session verification unavailable: %s", type(error).__name__)
         raise HTTPException(503, "Sign-in service is unavailable") from None
     try:
         return sync_user(claims)
-    except Exception:
+    except Exception as error:
+        logger.warning("Account synchronization failed: %s", type(error).__name__)
         raise HTTPException(503, "Account service is unavailable") from None
 
 
@@ -54,5 +58,6 @@ def onboarding(payload: Onboarding, user: CurrentUser):
                 "UPDATE opencall.users SET generated_phone_identifier=COALESCE(generated_phone_identifier, %s), updated_at=now() WHERE id=%s AND phone_number IS NULL",
                 (identifier, user["username"])))
         return {"ok": True}
-    except Exception:
+    except Exception as error:
+        logger.warning("Onboarding update failed: %s", type(error).__name__)
         raise HTTPException(503, "Account service is unavailable") from None

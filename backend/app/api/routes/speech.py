@@ -1,4 +1,5 @@
 import io
+import logging
 import wave
 from typing import Literal
 from uuid import uuid4
@@ -11,6 +12,7 @@ from app.services.gnani import (
 )
 
 router = APIRouter(prefix="/speech", tags=["speech"])
+logger = logging.getLogger(__name__)
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
 Language = Literal[
     "en-IN", "hi-IN", "te-IN", "ta-IN", "kn-IN",
@@ -69,8 +71,10 @@ async def synthesize(payload: SynthesisRequest) -> Response:
         audio = await synthesize_audio(client, text)
         if not isinstance(audio, bytes) or audio[:4] != b"RIFF" or audio[8:12] != b"WAVE":
             raise ValueError("Invalid audio response")
-    except Exception:
-        raise HTTPException(502, "Speech service could not generate audio. Please try again.") from None
+    except Exception as error:
+        logger.warning("Speech synthesis failed (request %s): %s", request_id, type(error).__name__)
+        raise HTTPException(502, "Speech service could not generate audio. Please try again.",
+                            headers={"X-API-Request-ID": request_id}) from None
 
     return Response(audio, media_type="audio/wav", headers={
         "Cache-Control": "no-store",
@@ -117,9 +121,11 @@ async def transcribe(
     request_id = str(uuid4())
     try:
         transcript = await recognize(client, pcm)
-    except Exception:
+    except Exception as error:
+        logger.warning("Speech transcription failed (request %s): %s", request_id, type(error).__name__)
         # Upstream error bodies can contain sensitive data; return a safe message.
-        raise HTTPException(502, "Speech service could not transcribe this recording. Please try again.") from None
+        raise HTTPException(502, "Speech service could not transcribe this recording. Please try again.",
+                            headers={"X-API-Request-ID": request_id}) from None
     return TranscriptionResponse(
         transcript=transcript.strip(), language_code=language_code,
         request_id=request_id,

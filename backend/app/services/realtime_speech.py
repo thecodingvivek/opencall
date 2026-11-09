@@ -108,5 +108,5 @@ class _AudioStream(tts.ChunkedStream):
             output_emitter.flush()
         except TimeoutError as error:
             raise APITimeoutError("Gnani speech stream timed out") from error
-        except (websockets.WebSocketException, ValueError) as error:
+        except (websockets.WebSocketException, OSError, ValueError) as error:
             raise APIConnectionError("Gnani speech stream failed") from error

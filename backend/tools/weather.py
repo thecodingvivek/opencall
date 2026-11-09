@@ -3,6 +3,7 @@ import asyncio
 from collections import Counter
 from datetime import date, datetime, time, timedelta, timezone
 import json
+import logging
 import re
 from zoneinfo import ZoneInfo
 
@@ -227,9 +228,11 @@ async def get_weather(location: str, start: str = "now", end: str | None = None)
     except ToolError:
         await send_step("weather_failed", {})
         raise
-    except (aiohttp.ClientError, asyncio.TimeoutError):
+    except (aiohttp.ClientError, asyncio.TimeoutError) as error:
+        logging.getLogger(__name__).warning("Weather provider unavailable: %s", type(error).__name__)
         await send_step("weather_failed", {})
         raise ToolError("The weather service is temporarily unavailable. Please try again shortly.") from None
-    except (ValueError, KeyError, TypeError, OverflowError):
+    except (ValueError, KeyError, TypeError, OverflowError) as error:
+        logging.getLogger(__name__).warning("Weather provider response invalid: %s", type(error).__name__)
         await send_step("weather_failed", {})
         raise ToolError("The weather service returned incomplete data. Ask for a clearer location or time and try again.") from None

@@ -23,7 +23,8 @@ export async function POST(request: Request, context: { params: Promise<{ action
     if (cookie) headers.set("Set-Cookie", cookie);
     if (response.headers.has("content-type")) headers.set("Content-Type", response.headers.get("content-type")!);
     return new Response(response.status === 204 ? null : await response.text(), { status: response.status, headers });
-  } catch {
+  } catch (error) {
+    console.error("Account service request failed", action, error instanceof Error ? error.name : "UnknownError");
     return Response.json({ detail: "Cannot reach the login service. Start the backend and try again." }, { status: 503 });
   }
 }

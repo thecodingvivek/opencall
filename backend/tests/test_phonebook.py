@@ -57,6 +57,14 @@ class PhonebookApiTests(unittest.TestCase):
         app.dependency_overrides.pop(require_user)
         self.assertEqual(self.client.get(endpoint).status_code, 401)
 
+    def test_database_errors_are_safe_and_recoverable(self):
+        self.store.get.side_effect = RuntimeError("private database details")
+        self.store.set_description.side_effect = RuntimeError("private database details")
+        endpoint = '/api/v1/conversation/phonebook'
+        for response in (self.client.get(endpoint), self.client.put(endpoint, json={'description': 'test'})):
+            self.assertEqual(response.status_code, 503)
+            self.assertNotIn('private database details', response.text)
+
 
 class DescriptionUpdateTests(unittest.IsolatedAsyncioTestCase):
     async def test_update_uses_current_revision(self):
