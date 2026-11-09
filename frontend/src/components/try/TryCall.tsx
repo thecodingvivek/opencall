@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { RoomAudioRenderer, RoomContext, useVoiceAssistant } from "@livekit/components-react";
 import { ChevronDown, Phone, PhoneOff } from "lucide-react";
@@ -175,7 +176,7 @@ export function TryCall() {
         <PhoneScreen status={status} />
       </motion.div>
       <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
-        <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
+        <Link href="/" className="text-base font-medium tracking-tight text-[#171717]">Opencall</Link>
         <a href="/" className="home-pill home-pill-quiet nav-back">Back</a>
       </nav>
       <Phonebook phonebook={phonebook} />
