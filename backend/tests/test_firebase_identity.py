@@ -30,6 +30,7 @@ class FirebaseIdentityTests(unittest.TestCase):
         self.assertIn("ON CONFLICT (firebase_uid)", query)
         self.assertNotIn("phonebook =", query)
         self.assertEqual(params[1], "verified")
+        self.assertRegex(params[4], r"^[1-9][0-9]{9}$")
 
     def test_invalid_number_rejected(self):
         with self.assertRaises(HTTPException) as error:

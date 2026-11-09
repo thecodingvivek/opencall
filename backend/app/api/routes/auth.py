@@ -1,5 +1,4 @@
 from typing import Annotated
-from secrets import token_hex
 import re
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
@@ -7,7 +6,7 @@ from pydantic import BaseModel
 from firebase_admin import auth as firebase_auth
 
 from app.core.postgres import get_pool
-from app.services.auth import sync_user, verify_session
+from app.services.auth import sync_user, verify_session, with_phone_identifier
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -47,11 +46,13 @@ def onboarding(payload: Onboarding, user: CurrentUser):
     if phone and not re.fullmatch(r"\+[1-9][0-9]{7,14}", phone):
         raise HTTPException(422, "Use an international number starting with + and country code")
     try:
-        with get_pool().connection() as conn:
-            if phone:
+        if phone:
+            with get_pool().connection() as conn:
                 conn.execute("UPDATE opencall.users SET phone_number=%s, phone_verified=false, generated_phone_identifier=NULL, updated_at=now() WHERE id=%s", (phone, user["username"]))
-            else:
-                conn.execute("UPDATE opencall.users SET generated_phone_identifier=COALESCE(generated_phone_identifier, %s), updated_at=now() WHERE id=%s AND phone_number IS NULL", ("placeholder-" + token_hex(16), user["username"]))
+        else:
+            with_phone_identifier(lambda conn, identifier: conn.execute(
+                "UPDATE opencall.users SET generated_phone_identifier=COALESCE(generated_phone_identifier, %s), updated_at=now() WHERE id=%s AND phone_number IS NULL",
+                (identifier, user["username"])))
         return {"ok": True}
     except Exception:
         raise HTTPException(503, "Account service is unavailable") from None
