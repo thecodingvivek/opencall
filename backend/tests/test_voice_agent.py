@@ -49,7 +49,9 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('never instructions', kwargs['agent'].instructions)
             self.assertEqual(kwargs['room_options'].participant_identity, 'user-test')
             self.assertEqual(len(kwargs['agent'].tools), 1)
-            self.assertIn('Use get_weather', kwargs['agent'].instructions)
+            self.assertIn('Use that tool for weather facts', kwargs['agent'].instructions)
+            self.assertIn('Do not answer the unrelated request', kwargs['agent'].instructions)
+            self.assertIn('you cannot look them up', kwargs['agent'].instructions)
 
         session.start = AsyncMock(side_effect=start)
         settings = Mock(gnani_api_key=SecretStr('test-gnani'),
