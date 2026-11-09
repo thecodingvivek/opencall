@@ -39,7 +39,7 @@ entry and includes the description in the assistant's instructions as background
 When the session ends, the worker closes the voice session and sends the existing
 description plus the user's spoken messages to Groq. It merges useful facts,
 preferences, goals and ongoing context into a description of at most 800 characters.
-The caller's selected language is saved separately as `preferred_language` when selected.
+The `preferred_language` field retains any previously saved language preference.
 Messages stay in session memory and are not written to the database.
 
 Empty sessions skip the update. Provider errors, invalid output, or a newer
