@@ -163,7 +163,7 @@ export function TryCall() {
         animate={{ y: status === "idle" ? "100%" : "30%" }}
         transition={reducedMotion ? { duration: 0 } : { duration: 0.8, ease: [0.22, 1, 0.36, 1] }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/test.svg" alt="" className="block h-auto w-full" />
+        <img src="/test.svg" alt="" className="block h-auto w-full drop-shadow-[0_8px_14px_rgba(0,0,0,0.18)]" />
         <PhoneScreen status={status} />
       </motion.div>
       <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
