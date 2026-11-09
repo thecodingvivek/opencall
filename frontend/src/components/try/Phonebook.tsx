@@ -1,6 +1,6 @@
 export type PhonebookState =
   | { status: "loading" | "guest" | "error" }
-  | { status: "ready"; username: string; description: string };
+  | { status: "ready"; phoneNumber: string | null; description: string };
 
 export function Phonebook({ phonebook }: { phonebook: PhonebookState }) {
   return (
@@ -13,7 +13,7 @@ export function Phonebook({ phonebook }: { phonebook: PhonebookState }) {
           {phonebook.status === "loading" && <p>Loading phonebook…</p>}
           {phonebook.status === "guest" && <p>The user is currently unknown.</p>}
           {phonebook.status === "error" && <p>Phonebook unavailable. Reload the page to try again.</p>}
-          {phonebook.status === "ready" && <><p className="font-medium text-[#343433]">{phonebook.username}</p><p className="whitespace-pre-wrap break-words">{phonebook.description || "No description yet."}</p></>}
+          {phonebook.status === "ready" && <><p className="font-medium text-[#343433]">{phonebook.phoneNumber || "No phone number provided"}</p><p className="whitespace-pre-wrap break-words">{phonebook.description || "No description yet."}</p></>}
         </div>
       </div>
     </section>
