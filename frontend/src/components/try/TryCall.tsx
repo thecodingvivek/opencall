@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { RoomAudioRenderer, RoomContext, useVoiceAssistant } from "@livekit/components-react";
-import { Phone, PhoneOff } from "lucide-react";
+import { ChevronDown, Phone, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Conversation } from "./Conversation";
 import { Orb } from "./Orb";
@@ -182,9 +182,12 @@ export function TryCall() {
       <section aria-label="Call" className="relative flex items-center justify-center">
         <label className="absolute bottom-[calc(50%+105px)] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 text-xs font-medium text-[#777]">
           Voice
-          <select aria-label="Agent voice" value={voice} onChange={event => setVoice(event.target.value)} disabled={status !== "idle"} className="rounded-full border border-[#e2e2e2] bg-white px-4 py-2 text-sm text-[#343433] outline-offset-2 disabled:opacity-50">
-            {voices.map(option => <option key={option.name} value={option.name}>{option.name}</option>)}
-          </select>
+          <span className="relative inline-flex items-center">
+            <select aria-label="Agent voice" value={voice} onChange={event => setVoice(event.target.value)} disabled={status !== "idle"} className="appearance-none rounded-full border border-[#e2e2e2] bg-white py-2 pl-4 pr-10 text-sm text-[#343433] outline-offset-2 disabled:opacity-50">
+              {voices.map(option => <option key={option.name} value={option.name}>{option.name}</option>)}
+            </select>
+            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 size-4 text-[#777]" />
+          </span>
         </label>
         <Orb audioStream={status === "active" ? orbStream : null} active={status === "active"} colors={(voices.find(option => option.name === voice) ?? voices[0]).colors} />
         {room && <RoomContext.Provider value={room}><AgentAudio onSpeaking={onSpeaking} onTrack={setAgentTrack} /></RoomContext.Provider>}
