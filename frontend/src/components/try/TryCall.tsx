@@ -176,7 +176,7 @@ export function TryCall() {
       </motion.div>
       <nav aria-label="Main navigation" className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
         <span className="text-base font-medium tracking-tight text-[#171717]">Opencall</span>
-        <a href="/get-started" className="home-pill home-pill-quiet nav-back">Back</a>
+        <a href="/" className="home-pill home-pill-quiet nav-back">Back</a>
       </nav>
       <Phonebook phonebook={phonebook} />
       <section aria-label="Call" className="relative flex items-center justify-center">

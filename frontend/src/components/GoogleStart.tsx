@@ -34,7 +34,7 @@ export default function GoogleStart() {
 
   async function start() {
     if (session === "signed-in") {
-      router.push("/get-started");
+      router.push("/try");
       return;
     }
     if (session === "unavailable") {
@@ -54,7 +54,7 @@ export default function GoogleStart() {
       });
       if (!response.ok) throw new Error("Could not create a session. Please try again.");
       await signOut(auth);
-      router.push("/get-started");
+      router.push("/try");
     } catch (err) {
       console.error("Google sign-in failed", err);
       setError("Google sign-in failed. Please try again.");
