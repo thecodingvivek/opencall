@@ -2,12 +2,28 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
+from pydantic import SecretStr
 
 from app.api.routes.auth import Onboarding, onboarding, require_user
-from app.services.auth import sync_user
+from app.services.auth import get_firebase_app, sync_user
 
 
 class FirebaseIdentityTests(unittest.TestCase):
+    def test_firebase_credentials_support_json_and_file(self):
+        for inline, expected in ((SecretStr('{"project_id":"example"}'), {"project_id": "example"}),
+                                 (None, "/local/service.json")):
+            with self.subTest(inline=inline is not None), \
+                 patch("app.services.auth.firebase_admin.get_app", side_effect=ValueError), \
+                 patch("app.services.auth.get_settings") as settings, \
+                 patch("app.services.auth.credentials.Certificate", return_value="credential") as certificate, \
+                 patch("app.services.auth.firebase_admin.initialize_app", return_value="app"):
+                settings.return_value.firebase_service_account_json = inline
+                settings.return_value.firebase_service_account_path = "/local/service.json"
+                get_firebase_app.cache_clear()
+                self.assertEqual(get_firebase_app(), "app")
+                certificate.assert_called_once_with(expected)
+        get_firebase_app.cache_clear()
+
     def test_missing_session_is_rejected(self):
         with self.assertRaises(HTTPException) as error:
             require_user(None)

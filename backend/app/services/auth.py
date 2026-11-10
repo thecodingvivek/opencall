@@ -1,5 +1,6 @@
 """Firebase identity verification and Postgres user synchronization."""
 from functools import lru_cache
+import json
 from secrets import randbelow
 from uuid import uuid4
 
@@ -16,7 +17,10 @@ def get_firebase_app():
     try:
         return firebase_admin.get_app()
     except ValueError:
-        return firebase_admin.initialize_app(credentials.Certificate(str(get_settings().firebase_service_account_path)))
+        settings = get_settings()
+        credential = (json.loads(settings.firebase_service_account_json.get_secret_value())
+                      if settings.firebase_service_account_json else str(settings.firebase_service_account_path))
+        return firebase_admin.initialize_app(credentials.Certificate(credential))
 
 
 def verify_session(session: str) -> dict:

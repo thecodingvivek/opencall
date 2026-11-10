@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = Field(default=None, validation_alias=AliasChoices("DATABASE_URL", "poolurl", "URL"))
     database_ssl_root_cert: Path | None = None
     firebase_service_account_path: Path = Path(__file__).resolve().parents[2] / "service.json"
+    firebase_service_account_json: SecretStr | None = None
     gnani_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
