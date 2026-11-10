@@ -17,6 +17,8 @@ For deployment, set `API_URL` to the public FastAPI origin and set
 server-side secret. The backend also needs that secret, or a secure credential
 file configured with `FIREBASE_SERVICE_ACCOUNT_PATH`. Configure these variables
 on each respective hosting project, then redeploy. Never commit the key file.
+For local sign-in, set `FIREBASE_SERVICE_ACCOUNT_JSON` in `frontend/.env.local`
+to the JSON contents as well.
 
 To run frontend checks:
 
