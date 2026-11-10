@@ -1,11 +1,12 @@
 .venv/
-.venv-voice/
+.venv-voice
 __pycache__/
 *.py[cod]
 .env
 .env.*
 !.env.example
 service.json
+opencall.json
 prod-ca-2021.crt
 .pytest_cache/
 .ruff_cache/
