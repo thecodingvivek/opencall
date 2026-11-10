@@ -1,6 +1,9 @@
 """Per-process Postgres connections for the API and voice worker."""
 from functools import lru_cache
+import atexit
+import os
 import socket
+import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -10,6 +13,15 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from app.core.config import get_settings
+
+
+@lru_cache
+def _environment_root_cert(pem: str) -> str:
+    fd, path = tempfile.mkstemp(prefix="opencall-db-ca-", suffix=".crt")
+    with os.fdopen(fd, "w") as output:
+        output.write(pem)
+    atexit.register(lambda: Path(path).unlink(missing_ok=True))
+    return path
 
 
 @lru_cache
@@ -23,10 +35,14 @@ def get_pool() -> ConnectionPool:
         raise RuntimeError("Invalid DATABASE_URL")
     # Explicit resolution avoids libpq's AI_ADDRCONFIG filtering of IPv6-only hosts.
     try:
-        address = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)[0][4][0]
+        addresses = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+        address = next((entry[4][0] for entry in addresses if entry[0] == socket.AF_INET), addresses[0][4][0])
     except socket.gaierror:
         address = str(dns.resolver.resolve(host, "AAAA", lifetime=5)[0])
     root_cert = get_settings().database_ssl_root_cert
+    pem = get_settings().database_ssl_root_cert_pem
+    if pem:
+        root_cert = _environment_root_cert(pem.get_secret_value())
     local_cert = Path(__file__).resolve().parents[2] / "prod-ca-2021.crt"
     if root_cert is None and local_cert.is_file():
         root_cert = local_cert
