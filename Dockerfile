@@ -4,7 +4,9 @@ WORKDIR /app
 COPY backend/requirements.txt /app/backend/requirements.txt
 COPY voiceagent/requirements.txt /app/voiceagent/requirements.txt
 RUN pip install --no-cache-dir -r voiceagent/requirements.txt
-RUN useradd --create-home --uid 10001 agent
+RUN useradd --create-home --uid 10001 agent \
+    && mkdir -p /app/model-cache \
+    && chown agent:agent /app/model-cache
 COPY backend/app /app/backend/app
 COPY backend/tools /app/backend/tools
 COPY voiceagent /app/voiceagent
