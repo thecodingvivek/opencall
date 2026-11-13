@@ -21,6 +21,15 @@ def _embed(query: str) -> list[float]:
     return list(next(_model().embed([query])))
 
 
+def _query_crop_knowledge(embedding: list[float], crop: str | None, region: str | None):
+    with get_pool().connection() as conn:
+        return conn.execute("""
+            SELECT * FROM opencall.search_crop_knowledge(
+              %s::extensions.vector(384), %s, %s, 5
+            ) WHERE similarity >= 0.35
+        """, (embedding, crop, region)).fetchall()
+
+
 @function_tool
 async def search_crop_knowledge(query: str, crop: str | None = None, region: str | None = None) -> str:
     """Find sourced crop disease, pest, and nutrient guidance by symptoms or question.
@@ -38,12 +47,7 @@ async def search_crop_knowledge(query: str, crop: str | None = None, region: str
     await send_step("crop_search_started", {"crop": crop})
     try:
         embedding = await asyncio.to_thread(_embed, query)
-        with get_pool().connection() as conn:
-            rows = conn.execute("""
-                SELECT * FROM opencall.search_crop_knowledge(
-                  %s::extensions.vector(384), %s, %s, 5
-                ) WHERE similarity >= 0.35
-            """, (embedding, crop, region)).fetchall()
+        rows = await asyncio.to_thread(_query_crop_knowledge, embedding, crop, region)
     except Exception as error:
         logging.getLogger(__name__).warning("Crop knowledge search failed: %s", type(error).__name__)
         await send_step("crop_search_failed", {})

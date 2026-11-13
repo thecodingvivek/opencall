@@ -15,6 +15,8 @@ them has been measured on a real call yet, so step 0 comes first.
 and reuses its TTS WebSocket across completed sentences. Interrupted or failed
 requests discard the socket; the next request reconnects. The 400 ms startup
 buffer remains in place. The first request still opens the connection on demand.
+The crop database lookup also runs in a worker thread, leaving the event loop
+free while it waits for the database.
 The measurements and other recommendations below remain a historical plan and have
 not yet been verified in a real call.
 
@@ -154,9 +156,9 @@ server.setup_fnc = prewarm
 # in conversation(): vad=ctx.proc.userdata["vad"]
 ```
 
-### 2.5 Stop blocking the event loop in tools
+### 2.5 Stop blocking the event loop in tools (crop query implemented)
 
-`search_crop_knowledge` runs a synchronous psycopg query directly inside an
+Previously, `search_crop_knowledge` ran a synchronous psycopg query directly inside an
 `async` function:
 
 ```python
@@ -164,9 +166,9 @@ with get_pool().connection() as conn:
     rows = conn.execute(...).fetchall()
 ```
 
-While it runs, the worker's event loop is blocked, which stalls audio frames,
-VAD, and the STT stream for that session. Move the query into
-`asyncio.to_thread`, as `tools/tasks.py` already does for `save_task`.
+The query now runs through `asyncio.to_thread`, including connection checkout
+and fetching rows. The event loop can continue handling audio while the tool
+waits for the result. Real-call impact remains unmeasured.
 
 Smaller tool items:
 
@@ -325,7 +327,7 @@ judged by impression. Keep recordings out of Git and out of the build context.
 | --- | --- | --- | --- |
 | 1 | Log turn metrics (section 0) | Small | Baseline for all later steps |
 | 2 | `reasoning_effort="low"` (2.1) | One line | Lower LLM first-token time |
-| 3 | Move crop DB query off the event loop (2.5) | Small | No audio stalls during crop search |
+| 3 | Move crop DB query off the event loop (2.5, implemented) | Small | Avoid event-loop stalls from the crop DB query |
 | 4 | Prewarm VAD, embedding model, DB pool (2.4) | Small | No model loads during a call |
 | 5 | Custom Gnani STT stream: Prisma v3.0, `hi-IN,en-IN`, `keyterms`, idle timeout; keep 500 ms silence (2.2, 3.1–3.4, 3.6) | Medium | Better recognition without splitting turns |
 | 6 | TTS connection reuse; keep the 400 ms startup buffer (2.3, implemented) | Medium | Fewer connection handshakes and potential gaps between sentences |
