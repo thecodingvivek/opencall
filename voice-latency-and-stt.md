@@ -42,18 +42,19 @@ language. Do not log transcript text at info level.
 
 | Stage | Current setting | Estimated cost | Source |
 | --- | --- | --- | --- |
-| Gnani server end-of-speech | `x-min-silence-ms` not sent, so the default is 500 ms | 500 ms | Gnani docs |
+| Gnani server end-of-speech | `x-min-silence-ms` not sent, so the default is 500 ms (kept on purpose, see 2.2) | 500 ms | Gnani docs |
 | Gnani transcription | Prisma v2.5 (no `model` header is sent) | ~300–400 ms (docs examples show 320–380 ms) | Gnani docs |
 | LiveKit endpointing | Silero `min_silence_duration=0.35`, `min_delay=0.5` | Runs in parallel; turn waits for the final transcript | `worker.py` |
 | Groq first token | `gpt-oss-20b` with no `reasoning_effort`, so Groq's default (`medium`) applies | Reasoning tokens are generated before any spoken text | `worker.py`, plugin `llm.py` |
 | First sentence | LiveKit sentence adapter waits for a full sentence | Depends on sentence length | `realtime_speech.py` |
 | TTS connection | New `wss://api.vachana.ai/api/v1/tts` connection per sentence | TCP + TLS + WebSocket upgrade on every sentence | `realtime_speech.py` |
-| TTS startup buffer | `STARTUP_BUFFER_MS = 400` | Up to 400 ms held back per sentence | `realtime_speech.py` |
+| TTS startup buffer | `STARTUP_BUFFER_MS = 400` (added in `ee71b71` to stop choppy playback) | Up to 400 ms held back per sentence | `realtime_speech.py` |
 
 Gnani STT emits only final transcripts (`interim_results=False` in the plugin),
 so the turn cannot complete until Gnani's own 500 ms silence timer expires and
-transcription finishes. In practice the STT path, not Silero, sets the
-end-of-turn time.
+transcription finishes. That wait is kept on purpose (2.2), so the savings have
+to come from the stages after it: the LLM, sentence buffering, and TTS
+connections.
 
 ## 2. Latency changes, highest value first
 
@@ -76,33 +77,56 @@ creation) holds at `low` with a handful of scripted prompts.
 Also consider lowering `max_completion_tokens` from 512. Replies are meant to be
 one to three sentences, and reasoning tokens count toward this limit.
 
-### 2.2 Send Gnani `commit` when LiveKit's VAD ends the turn
+### 2.2 Keep Gnani's 500 ms silence window; do not shorten it
 
-The Gnani stream supports a `{"type": "commit"}` control frame that closes the
-open utterance at once instead of waiting for `x-min-silence-ms`. The 1.8.8
-plugin sends buffered audio on LiveKit's flush but never sends `commit`
-(`SpeechStream._send_audio`).
+The 500 ms default is deliberate. `x-min-silence-ms` controls how long Gnani
+waits after the **caller** stops before it closes their utterance. It does not
+change how TTS audio is generated. It still affects how the assistant sounds,
+indirectly:
 
-Subclass `gnani.STT`/`SpeechStream` in `backend/app/services/` (the same pattern
-as `ConversationTTS`) and send `commit` on the flush sentinel. Silero has
-already decided the user stopped, so this removes most of Gnani's 500 ms wait.
+1. With a shorter window, a natural pause ("mere khet mein... gehu hai") closes
+   the utterance early and Gnani sends half a sentence.
+2. LiveKit treats that fragment as a complete turn and the assistant starts
+   replying.
+3. The caller keeps talking, which interrupts the assistant, so its audio stops
+   after a word or two and a new reply starts.
 
-If `commit` proves unreliable, the fallback is to send `x-min-silence-ms`
-explicitly (for example 350–400) and accept more split utterances.
+The caller hears this as the voice cutting in and out. Lowering the value saves
+a few hundred milliseconds per turn but makes these false turns more likely,
+so it is not worth it here. If pauses still split turns, try raising it to
+600–700 ms rather than lowering it.
 
-### 2.3 Reuse the TTS connection and shrink the startup buffer
+For the same reason, do **not** send Gnani's `commit` frame whenever Silero
+detects silence. Silero's `min_silence_duration` is 0.35 s, which is shorter
+than 500 ms, so committing on it would cause the splitting described above.
+
+Ways to cut latency without shortening the silence window:
+
+- The LLM change in 2.1, the TTS connection change in 2.3, and the prewarming
+  in 2.4 all remove delay *after* the turn ends, so they do not risk splitting
+  turns.
+- If a semantic end-of-turn model is added later, sending `commit` only when
+  that model is confident the caller has finished is safe. That is a separate
+  change, and it needs testing with Hindi and Hinglish speech.
+
+### 2.3 Reuse the TTS connection; keep the startup buffer
 
 `_AudioStream._run` opens and closes a WebSocket for every sentence. On a
-three-sentence reply that is three handshakes to `api.vachana.ai`, each one
-sitting in front of audio.
+three-sentence reply that is three handshakes to `api.vachana.ai`. The first
+one delays the start of the reply. The later ones can leave a silent gap
+between sentences if the previous sentence finishes playing before the next
+one's audio arrives. That gap is another source of choppy-sounding speech.
 
 - Open the socket once per session, or keep one warm connection in a small pool,
   if Gnani's TTS socket accepts more than one request per connection. Confirm
   this in the Gnani TTS WebSocket docs before building it.
 - If reuse is not supported, open the next sentence's socket while the current
   sentence is still playing.
-- Lower `STARTUP_BUFFER_MS` from 400 to about 100–150 ms and listen for
-  crackling. LiveKit's audio emitter already reframes into 20 ms frames.
+- Keep `STARTUP_BUFFER_MS = 400`. It was added in commit `ee71b71` to stop
+  choppy playback when Gnani's first chunks arrive unevenly. Only revisit it
+  after connection reuse is in place, and lower it in small steps (300, then
+  250) while listening on a real call. Go back up at the first sign of
+  stutter, because smooth audio matters more here than 100 ms.
 
 ### 2.4 Prewarm per-process resources
 
@@ -180,7 +204,8 @@ from a laptop, before comparing models or providers.
 
 The plugin sends no `model` header, so streaming STT uses **Prisma v2.5**.
 Prisma v3.0 (`model: prisma-v3.0`) adds most of the features below. A custom
-`SpeechStream` subclass (needed for `commit` anyway) can send the extra headers.
+`SpeechStream` subclass in `backend/app/services/` (the same pattern as
+`ConversationTTS`) can send the extra headers.
 
 ### 3.2 Fix the Hindi/English language setting
 
@@ -296,8 +321,8 @@ judged by impression. Keep recordings out of Git and out of the build context.
 | 2 | `reasoning_effort="low"` (2.1) | One line | Lower LLM first-token time |
 | 3 | Move crop DB query off the event loop (2.5) | Small | No audio stalls during crop search |
 | 4 | Prewarm VAD, embedding model, DB pool (2.4) | Small | No model loads during a call |
-| 5 | Custom Gnani STT stream: `commit`, Prisma v3.0, `hi-IN,en-IN`, `keyterms`, idle timeout (2.2, 3.1–3.4, 3.6) | Medium | Shorter end-of-turn wait and better recognition |
-| 6 | TTS connection reuse and smaller startup buffer (2.3) | Medium | Faster first audio on each sentence |
+| 5 | Custom Gnani STT stream: Prisma v3.0, `hi-IN,en-IN`, `keyterms`, idle timeout; keep 500 ms silence (2.2, 3.1–3.4, 3.6) | Medium | Better recognition without splitting turns |
+| 6 | TTS connection reuse; keep the 400 ms startup buffer (2.3) | Medium | Faster first audio and fewer gaps between sentences |
 | 7 | Detected language drives TTS and reply language (3.3) | Medium | Fewer wrong-language replies |
 | 8 | STT evaluation set (3.9), then `codemix` and audio capture A/B tests (3.5, 3.8) | Medium | Measured STT improvements |
 | 9 | Fixed greeting, preemptive TTS, filler lines (2.6, 2.7, 2.5) | Small | Shorter perceived waits |
