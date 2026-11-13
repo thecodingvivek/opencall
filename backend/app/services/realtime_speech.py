@@ -98,10 +98,10 @@ class _AudioStream(tts.ChunkedStream):
         complete = False
         saw_start = False
         try:
-            async with asyncio.timeout(self._conn_options.timeout):
-                async with provider._lock:
-                    try:
-                        ws = await provider._connect()
+            async with provider._lock:
+                try:
+                    ws = await provider._connect()
+                    async with asyncio.timeout(self._conn_options.timeout):
                         await ws.send(json.dumps({
                             "text": self._input_text, "voice": provider._voice,
                             "model": provider.model, "language": self._language,
@@ -110,40 +110,45 @@ class _AudioStream(tts.ChunkedStream):
                                 "container": "raw", "num_channels": 1, "sample_width": 2,
                             },
                         }))
-                        async for message in ws:
-                            if isinstance(message, bytes):
-                                audio = message
-                                final = False
-                            else:
-                                data = json.loads(message)
-                                if data.get("type") == "error":
-                                    raise APIStatusError("Gnani speech stream failed", status_code=502)
-                                if data.get("type") == "start":
-                                    saw_start = True
-                                    continue
-                                # Gnani can send a second, request-level completion after
-                                # the final audio event. It belongs to the preceding
-                                # request if it arrives before this request's start.
-                                if (data.get("type") == "complete" and data.get("request_id")
-                                        and not saw_start):
-                                    continue
-                                body = data.get("data") or {}
-                                audio = base64.b64decode(body.get("audio", ""), validate=True)
-                                final = data.get("type") == "complete" or body.get("is_final", False)
-                            pending += audio
-                            count = len(pending) - len(pending) % 2
-                            if count and (started or count >= startup_bytes or final):
-                                output_emitter.push(pending[:count])
-                                pending = pending[count:]
-                                started = True
-                            if final:
-                                complete = True
-                                break
-                        if not complete or pending:
-                            raise APIConnectionError("Gnani speech stream ended before completion")
-                    except BaseException:
-                        await provider._discard_socket()
-                        raise
+                    messages = ws.__aiter__()
+                    while True:
+                        try:
+                            message = await asyncio.wait_for(anext(messages), timeout=self._conn_options.timeout)
+                        except StopAsyncIteration:
+                            break
+                        if isinstance(message, bytes):
+                            audio = message
+                            final = False
+                        else:
+                            data = json.loads(message)
+                            if data.get("type") == "error":
+                                raise APIStatusError("Gnani speech stream failed", status_code=502)
+                            if data.get("type") == "start":
+                                saw_start = True
+                                continue
+                            # Gnani can send a second, request-level completion after
+                            # the final audio event. It belongs to the preceding
+                            # request if it arrives before this request's start.
+                            if (data.get("type") == "complete" and data.get("request_id")
+                                    and not saw_start):
+                                continue
+                            body = data.get("data") or {}
+                            audio = base64.b64decode(body.get("audio", ""), validate=True)
+                            final = data.get("type") == "complete" or body.get("is_final", False)
+                        pending += audio
+                        count = len(pending) - len(pending) % 2
+                        if count and (started or count >= startup_bytes or final):
+                            output_emitter.push(pending[:count])
+                            pending = pending[count:]
+                            started = True
+                        if final:
+                            complete = True
+                            break
+                    if not complete or pending:
+                        raise APIConnectionError("Gnani speech stream ended before completion")
+                except BaseException:
+                    await provider._discard_socket()
+                    raise
             output_emitter.flush()
         except TimeoutError as error:
             raise APITimeoutError("Gnani speech stream timed out") from error

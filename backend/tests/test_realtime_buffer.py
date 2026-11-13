@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from livekit.agents import APIConnectOptions, APIConnectionError
+from livekit.agents import APIConnectOptions, APIConnectionError, APITimeoutError
 from websockets.protocol import State
 from app.services.realtime_speech import ConversationTTS
 
@@ -141,4 +141,32 @@ class ConnectionReuseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(connect.await_count, 2)
             await first.aclose()
             await second.aclose()
+            await provider.aclose()
+
+
+class StreamingTimeoutTests(unittest.IsolatedAsyncioTestCase):
+    async def test_active_stream_can_last_longer_than_timeout(self):
+        class SlowSocket(Socket):
+            async def __anext__(self):
+                await asyncio.sleep(.04)
+                return await super().__anext__()
+        socket = SlowSocket([message(b'aa'), message(b'bb'), message(b'cc'), message(final=True)])
+        provider = ConversationTTS(api_key='test', voice='Shivani', language='en-IN')
+        with patch('app.services.realtime_speech.websockets.connect', new=AsyncMock(return_value=socket)):
+            async with provider.synthesize('A long response', conn_options=APIConnectOptions(max_retry=0, timeout=.1)) as stream:
+                result = await stream.collect()
+            self.assertEqual(bytes(result.data)[:6], b'aabbcc')
+            await provider.aclose()
+
+    async def test_stalled_stream_times_out_and_closes_socket(self):
+        class StalledSocket(Socket):
+            async def __anext__(self):
+                await asyncio.sleep(1)
+        socket = StalledSocket([])
+        provider = ConversationTTS(api_key='test', voice='Shivani', language='en-IN')
+        with patch('app.services.realtime_speech.websockets.connect', new=AsyncMock(return_value=socket)):
+            async with provider.synthesize('A response', conn_options=APIConnectOptions(max_retry=0, timeout=.05)) as stream:
+                with self.assertRaises(APITimeoutError):
+                    await stream.collect()
+            socket.close.assert_awaited_once()
             await provider.aclose()
