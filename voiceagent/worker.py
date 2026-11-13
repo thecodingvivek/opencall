@@ -5,13 +5,14 @@ import logging
 from datetime import datetime, timezone
 
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli, room_io
-from livekit.plugins import gnani, openai, silero
+from livekit.plugins import openai, silero
 from livekit.agents.llm import ChatContext, ChatMessage
 
 from app.core.config import get_settings
 from app.services.conversation import AGENT_NAME, ConversationOptions
 from app.services.phonebook import PhonebookEntry, get_phonebook_store, update_description_after_session
 from app.services.realtime_speech import ConversationTTS
+from app.services.prisma_stt import PrismaSTT
 from app.services.agent_steps import send_step
 from tools import AGENT_TOOLS
 
@@ -113,7 +114,7 @@ async def conversation(ctx: JobContext):
     entry = PhonebookEntry(username="unknown") if guest else await asyncio.to_thread(store.get, username)
 
     bilingual = options.language_code in {"hi-IN", "en-IN"}
-    stt = gnani.STT(api_key=settings.gnani_api_key.get_secret_value(),
+    stt = PrismaSTT(api_key=settings.gnani_api_key.get_secret_value(),
                     language="indic-auto" if bilingual else options.language_code, sample_rate=16000, use_streaming=True)
     tts = ConversationTTS(api_key=settings.gnani_api_key.get_secret_value(),
                           voice=options.voice, language=options.language_code)

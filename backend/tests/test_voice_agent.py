@@ -88,6 +88,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
             'openai', strict=config['llm']._strict_tool_schema)[2]['function']['name'], 'search_crop_knowledge')
         self.assertTrue(config['stt'].capabilities.streaming)
+        self.assertEqual(config['stt'].model, 'prisma-v3.0')
         self.assertEqual(config['tts'].model, 'timbre-v3.0')
         self.assertTrue(config['turn_handling']['interruption']['enabled'])
         self.assertEqual(config['turn_handling']['interruption']['min_duration'], .35)

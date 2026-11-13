@@ -11,6 +11,10 @@ Reviewed against the code on November 13, 2026, with `livekit-agents==1.8.8`,
 The timings below are estimates from configuration and provider docs. None of
 them has been measured on a real call yet, so step 0 comes first.
 
+**Implementation update:** The continuous call worker now requests Prisma v3.0 explicitly.
+The measurements and other recommendations below remain a historical plan and have
+not yet been verified in a real call.
+
 ## 0. Measure before tuning
 
 The worker logs no per-turn timings today. The Phoenix integration described
