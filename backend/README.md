@@ -17,7 +17,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 Use a dedicated virtual environment for this backend. If an older `.venv` also
 contains Google ADK or LiteLLM, those unrelated packages can conflict with
-LiveKit 1.8.8 dependencies; a fresh environment avoids that conflict.
+LiveKit 1.8.9 dependencies; a fresh environment avoids that conflict.
 Environment variables override
 values in `backend/.env`; the app also works with the defaults without this file.
 
@@ -78,7 +78,7 @@ on the user row. See [Phonebook](phonebook.md) for the API and update behavior.
 
 ## LiveKit speech backend
 
-Speech runs through `livekit-plugins-gnani==1.8.8` and LiveKit Agents 1.8.8.
+Speech runs through `livekit-plugins-gnani==1.8.9` and LiveKit Agents 1.8.9.
 The standalone transcription endpoint converts the
 validated WAV into a LiveKit `rtc.AudioFrame` and awaits `STT.recognize()`.
 Playback collects a LiveKit `tts.ChunkedStream` into an audio frame and returns WAV.

@@ -42,7 +42,7 @@ def main():
         shutil.copy2(root / "backend/requirements.txt", build / "backend/requirements.txt")
         shutil.copy2(root / "Dockerfile", build / "Dockerfile")
         shutil.copy2(root / ".dockerignore", build / ".dockerignore")
-        (build / "requirements.txt").write_text("livekit-agents[codecs]==1.8.8\n-r backend/requirements.txt\n")
+        (build / "requirements.txt").write_text("livekit-agents[codecs]==1.8.9\n-r backend/requirements.txt\n")
         config = root / "livekit.toml"
         if config.is_file():
             shutil.copy2(config, build / "livekit.toml")

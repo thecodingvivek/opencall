@@ -1,6 +1,6 @@
 """LiveKit plugin lifecycle and Timbre v3 compatibility.
 
-Pinned to livekit-plugins-gnani 1.8.8: its TTS payload only includes language for
+Pinned to livekit-plugins-gnani 1.8.9: its TTS payload only includes language for
 v2.5. This stream adds v3 language using LiveKit's standard AudioEmitter. Output
 is 44.1 kHz, the highest sample rate accepted by the published plugin.
 """
