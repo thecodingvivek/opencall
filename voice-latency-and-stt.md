@@ -11,7 +11,10 @@ Reviewed against the code on November 13, 2026, with `livekit-agents==1.8.8`,
 The timings below are estimates from configuration and provider docs. None of
 them has been measured on a real call yet, so step 0 comes first.
 
-**Implementation update:** The continuous call worker now requests Prisma v3.0 explicitly.
+**Implementation update:** The continuous call worker now requests Prisma v3.0 explicitly
+and reuses its TTS WebSocket across completed sentences. Interrupted or failed
+requests discard the socket; the next request reconnects. The 400 ms startup
+buffer remains in place. The first request still opens the connection on demand.
 The measurements and other recommendations below remain a historical plan and have
 not yet been verified in a real call.
 
@@ -51,7 +54,7 @@ language. Do not log transcript text at info level.
 | LiveKit endpointing | Silero `min_silence_duration=0.35`, `min_delay=0.5` | Runs in parallel; turn waits for the final transcript | `worker.py` |
 | Groq first token | `gpt-oss-20b` with no `reasoning_effort`, so Groq's default (`medium`) applies | Reasoning tokens are generated before any spoken text | `worker.py`, plugin `llm.py` |
 | First sentence | LiveKit sentence adapter waits for a full sentence | Depends on sentence length | `realtime_speech.py` |
-| TTS connection | New `wss://api.vachana.ai/api/v1/tts` connection per sentence | TCP + TLS + WebSocket upgrade on every sentence | `realtime_speech.py` |
+| TTS connection | Reuses `wss://api.vachana.ai/api/v1/tts` across completed sentences | First request and reconnects pay the connection cost | `realtime_speech.py` |
 | TTS startup buffer | `STARTUP_BUFFER_MS = 400` (added in `ee71b71` to stop choppy playback) | Up to 400 ms held back per sentence | `realtime_speech.py` |
 
 Gnani STT emits only final transcripts (`interim_results=False` in the plugin),
@@ -113,19 +116,18 @@ Ways to cut latency without shortening the silence window:
   that model is confident the caller has finished is safe. That is a separate
   change, and it needs testing with Hindi and Hinglish speech.
 
-### 2.3 Reuse the TTS connection; keep the startup buffer
+### 2.3 Reuse the TTS connection; keep the startup buffer (implemented)
 
-`_AudioStream._run` opens and closes a WebSocket for every sentence. On a
+Before this change, `_AudioStream._run` opened and closed a WebSocket for every sentence. On a
 three-sentence reply that is three handshakes to `api.vachana.ai`. The first
 one delays the start of the reply. The later ones can leave a silent gap
 between sentences if the previous sentence finishes playing before the next
 one's audio arrives. That gap is another source of choppy-sounding speech.
 
-- Open the socket once per session, or keep one warm connection in a small pool,
-  if Gnani's TTS socket accepts more than one request per connection. Confirm
-  this in the Gnani TTS WebSocket docs before building it.
-- If reuse is not supported, open the next sentence's socket while the current
-  sentence is still playing.
+- Reuse one socket per call, with one request at a time. Gnani documents sending
+  another request after completion. The socket opens on demand and is closed
+  on call shutdown, interruption, or failure.
+- Consider prewarming the connection at call start to reduce first-sentence latency.
 - Keep `STARTUP_BUFFER_MS = 400`. It was added in commit `ee71b71` to stop
   choppy playback when Gnani's first chunks arrive unevenly. Only revisit it
   after connection reuse is in place, and lower it in small steps (300, then
@@ -326,7 +328,7 @@ judged by impression. Keep recordings out of Git and out of the build context.
 | 3 | Move crop DB query off the event loop (2.5) | Small | No audio stalls during crop search |
 | 4 | Prewarm VAD, embedding model, DB pool (2.4) | Small | No model loads during a call |
 | 5 | Custom Gnani STT stream: Prisma v3.0, `hi-IN,en-IN`, `keyterms`, idle timeout; keep 500 ms silence (2.2, 3.1–3.4, 3.6) | Medium | Better recognition without splitting turns |
-| 6 | TTS connection reuse; keep the 400 ms startup buffer (2.3) | Medium | Faster first audio and fewer gaps between sentences |
+| 6 | TTS connection reuse; keep the 400 ms startup buffer (2.3, implemented) | Medium | Fewer connection handshakes and potential gaps between sentences |
 | 7 | Detected language drives TTS and reply language (3.3) | Medium | Fewer wrong-language replies |
 | 8 | STT evaluation set (3.9), then `codemix` and audio capture A/B tests (3.5, 3.8) | Medium | Measured STT improvements |
 | 9 | Fixed greeting, preemptive TTS, filler lines (2.6, 2.7, 2.5) | Small | Shorter perceived waits |

@@ -4,6 +4,7 @@ import base64
 import json
 
 import websockets
+from websockets.protocol import State
 from livekit.agents import (
     APIConnectionError, APIConnectOptions, APIStatusError, APITimeoutError,
     DEFAULT_API_CONNECT_OPTIONS, tts, utils,
@@ -30,6 +31,9 @@ class ConversationTTS(tts.TTS):
         self._key = api_key
         self._voice = voice
         self._language = language
+        self._socket = None
+        self._lock = asyncio.Lock()
+        self._closed = False
 
     @property
     def model(self) -> str:
@@ -50,8 +54,28 @@ class ConversationTTS(tts.TTS):
                 language = "hi-IN" if any("\u0900" <= char <= "\u097f" for char in text) else "en-IN"
         return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=language)
 
+    async def _connect(self):
+        if self._closed:
+            raise APIConnectionError("Gnani TTS provider is closed")
+        if self._socket is not None and self._socket.state is not State.OPEN:
+            await self._discard_socket()
+        if self._socket is None:
+            self._socket = await websockets.connect(
+                "wss://api.vachana.ai/api/v1/tts",
+                additional_headers={"X-API-Key-ID": self._key},
+                open_timeout=10, close_timeout=3,
+            )
+        return self._socket
+
+    async def _discard_socket(self):
+        socket, self._socket = self._socket, None
+        if socket is not None:
+            await socket.close()
+
     async def aclose(self):
-        pass  # Each stream owns its WebSocket context; cancellation closes it.
+        self._closed = True
+        async with self._lock:
+            await self._discard_socket()
 
 
 class _AudioStream(tts.ChunkedStream):
@@ -70,41 +94,42 @@ class _AudioStream(tts.ChunkedStream):
         complete = False
         try:
             async with asyncio.timeout(self._conn_options.timeout):
-                async with websockets.connect(
-                    "wss://api.vachana.ai/api/v1/tts",
-                    additional_headers={"X-API-Key-ID": provider._key},
-                    open_timeout=10, close_timeout=3,
-                ) as ws:
-                    await ws.send(json.dumps({
-                        "text": self._input_text, "voice": provider._voice,
-                        "model": provider.model, "language": self._language,
-                        "audio_config": {
-                            "sample_rate": provider.sample_rate, "encoding": "linear_pcm",
-                            "container": "raw", "num_channels": 1, "sample_width": 2,
-                        },
-                    }))
-                    async for message in ws:
-                        if isinstance(message, bytes):
-                            audio = message
-                            final = False
-                        else:
-                            data = json.loads(message)
-                            if data.get("type") == "error":
-                                raise APIStatusError("Gnani speech stream failed", status_code=502)
-                            body = data.get("data") or {}
-                            audio = base64.b64decode(body.get("audio", ""), validate=True)
-                            final = data.get("type") == "complete" or body.get("is_final", False)
-                        pending += audio
-                        count = len(pending) - len(pending) % 2
-                        if count and (started or count >= startup_bytes or final):
-                            output_emitter.push(pending[:count])
-                            pending = pending[count:]
-                            started = True
-                        if final:
-                            complete = True
-                            break
-            if not complete or pending:
-                raise APIConnectionError("Gnani speech stream ended before completion")
+                async with provider._lock:
+                    try:
+                        ws = await provider._connect()
+                        await ws.send(json.dumps({
+                            "text": self._input_text, "voice": provider._voice,
+                            "model": provider.model, "language": self._language,
+                            "audio_config": {
+                                "sample_rate": provider.sample_rate, "encoding": "linear_pcm",
+                                "container": "raw", "num_channels": 1, "sample_width": 2,
+                            },
+                        }))
+                        async for message in ws:
+                            if isinstance(message, bytes):
+                                audio = message
+                                final = False
+                            else:
+                                data = json.loads(message)
+                                if data.get("type") == "error":
+                                    raise APIStatusError("Gnani speech stream failed", status_code=502)
+                                body = data.get("data") or {}
+                                audio = base64.b64decode(body.get("audio", ""), validate=True)
+                                final = data.get("type") == "complete" or body.get("is_final", False)
+                            pending += audio
+                            count = len(pending) - len(pending) % 2
+                            if count and (started or count >= startup_bytes or final):
+                                output_emitter.push(pending[:count])
+                                pending = pending[count:]
+                                started = True
+                            if final:
+                                complete = True
+                                break
+                        if not complete or pending:
+                            raise APIConnectionError("Gnani speech stream ended before completion")
+                    except BaseException:
+                        await provider._discard_socket()
+                        raise
             output_emitter.flush()
         except TimeoutError as error:
             raise APITimeoutError("Gnani speech stream timed out") from error

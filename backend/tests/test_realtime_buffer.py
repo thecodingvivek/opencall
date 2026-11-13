@@ -1,9 +1,11 @@
+import asyncio
 import base64
 import json
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from livekit.agents import APIConnectOptions, APIConnectionError
+from websockets.protocol import State
 from app.services.realtime_speech import ConversationTTS
 
 
@@ -16,10 +18,11 @@ class Socket:
     def __init__(self, messages, observer=None):
         self.messages = iter(messages)
         self.observer = observer
+        self.state = State.OPEN
+        self.sent = []
+        self.close = AsyncMock()
 
-    async def __aenter__(self): return self
-    async def __aexit__(self, *args): return False
-    async def send(self, message): pass
+    async def send(self, message): self.sent.append(json.loads(message))
     def __aiter__(self): return self
     async def __anext__(self):
         if self.observer:
@@ -51,9 +54,10 @@ class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
         emitter = Mock()
         provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
         stream = provider.synthesize("Hello", conn_options=APIConnectOptions(max_retry=0))
-        with patch("app.services.realtime_speech.websockets.connect", return_value=Socket(messages, observer)):
+        with patch("app.services.realtime_speech.websockets.connect", new=AsyncMock(return_value=Socket(messages, observer))):
             await stream._run(emitter)
         await stream.aclose()
+        await provider.aclose()
         return emitter
 
     async def test_buffers_until_threshold_then_streams(self):
@@ -63,12 +67,13 @@ class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
         stream = provider.synthesize("Hello", conn_options=APIConnectOptions(max_retry=0))
         socket = Socket([message(b"a" * 9601), message(b"b" * 9599), message(b"c" * 20), message(final=True)],
                         lambda: pushes.append(emitter.push.call_count))
-        with patch("app.services.realtime_speech.websockets.connect", return_value=socket):
+        with patch("app.services.realtime_speech.websockets.connect", new=AsyncMock(return_value=socket)):
             await stream._run(emitter)
         self.assertEqual(pushes, [0, 0, 1, 2])
         self.assertEqual(b"".join(call.args[0] for call in emitter.push.call_args_list), b"a" * 9601 + b"b" * 9599 + b"c" * 20)
         emitter.flush.assert_called_once()
         await stream.aclose()
+        await provider.aclose()
 
     async def test_short_complete_stream_is_released(self):
         emitter = await self.run_stream([message(b"\0\0" * 100), message(final=True)])
@@ -86,3 +91,54 @@ class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(APIConnectionError):
                 await stream._run(Mock())
         await stream.aclose()
+
+
+class ConnectionReuseTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reuses_socket_and_closes_at_end_of_call(self):
+        provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
+        socket = Socket([message(b"aa"), message(final=True), message(b"bb"), message(final=True)])
+        with patch("app.services.realtime_speech.websockets.connect", new=AsyncMock(return_value=socket)) as connect:
+            first, second = provider.synthesize("First"), provider.synthesize("Second")
+            await first._run(Mock())
+            await second._run(Mock())
+            self.assertEqual(connect.await_count, 1)
+            self.assertEqual([item["text"] for item in socket.sent], ["First", "Second"])
+            await first.aclose()
+            await second.aclose()
+            await provider.aclose()
+            socket.close.assert_awaited_once()
+
+    async def test_interruption_discards_socket_and_next_request_reconnects(self):
+        provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
+        waiting = asyncio.Event()
+        class BlockingSocket(Socket):
+            async def __anext__(self):
+                waiting.set()
+                await asyncio.Event().wait()
+        first_socket = BlockingSocket([])
+        second_socket = Socket([message(b"ok"), message(final=True)])
+        with patch("app.services.realtime_speech.websockets.connect", new=AsyncMock(side_effect=[first_socket, second_socket])) as connect:
+            first = provider.synthesize("Interrupted")
+            await waiting.wait()
+            await first.aclose()
+            first_socket.close.assert_awaited_once()
+            second = provider.synthesize("Next")
+            await second._run(Mock())
+            self.assertEqual(connect.await_count, 2)
+            await first.aclose()
+            await second.aclose()
+            await provider.aclose()
+
+    async def test_closed_idle_socket_is_replaced(self):
+        provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
+        first_socket = Socket([message(b"aa"), message(final=True)])
+        second_socket = Socket([message(b"bb"), message(final=True)])
+        with patch("app.services.realtime_speech.websockets.connect", new=AsyncMock(side_effect=[first_socket, second_socket])) as connect:
+            first, second = provider.synthesize("First"), provider.synthesize("Second")
+            await first._run(Mock())
+            first_socket.state = State.CLOSED
+            await second._run(Mock())
+            self.assertEqual(connect.await_count, 2)
+            await first.aclose()
+            await second.aclose()
+            await provider.aclose()

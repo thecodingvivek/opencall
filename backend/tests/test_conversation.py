@@ -92,8 +92,7 @@ class Socket:
     async def __anext__(self):
         try: return next(self.messages)
         except StopIteration: raise StopAsyncIteration
-    async def __aenter__(self): return self
-    async def __aexit__(self, *args): self.closed = True
+    async def close(self): self.closed = True
 
 
 def message(data, final=False):
@@ -106,9 +105,11 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
         pcm = b'\x01\x00' * 2400
         socket = Socket([message(pcm[:101]), message(pcm[101:]), message(b'', True)])
         provider = ConversationTTS(api_key='test-key', voice='Lakshmi', language='te-IN')
-        with patch('app.services.realtime_speech.websockets.connect', return_value=socket):
+        with patch('app.services.realtime_speech.websockets.connect', new=AsyncMock(return_value=socket)):
             async with provider.synthesize('Hello', conn_options=APIConnectOptions(max_retry=0)) as stream:
                 result = await stream.collect()
+        self.assertFalse(socket.closed)
+        await provider.aclose()
         self.assertTrue(socket.closed)
         self.assertEqual(bytes(result.data)[:len(pcm)], pcm)
         # LiveKit may append a short silence frame to mark the final segment.
@@ -123,7 +124,7 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
     async def test_incomplete_stream_is_rejected(self):
         socket = Socket([message(b'\0\0' * 1200)])
         provider = ConversationTTS(api_key='test-key', voice='Shivani', language='en-IN')
-        with patch('app.services.realtime_speech.websockets.connect', return_value=socket):
+        with patch('app.services.realtime_speech.websockets.connect', new=AsyncMock(return_value=socket)):
             async with provider.synthesize('Hello', conn_options=APIConnectOptions(max_retry=0)) as stream:
                 with self.assertRaises(Exception): await stream.collect()
         self.assertTrue(socket.closed)

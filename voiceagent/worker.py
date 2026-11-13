@@ -105,6 +105,7 @@ async def conversation(ctx: JobContext):
             try:
                 await session.aclose()
             finally:
+                await tts.aclose()
                 statements = [item.text_content for item in session.history.items
                               if isinstance(item, ChatMessage) and item.role == "user" and item.text_content]
                 if not guest:
