@@ -8,7 +8,7 @@ export async function currentUser(): Promise<{ username: string; display_name: s
   if (!session) return null;
   const response = await fetch(`${backendUrl}/api/v1/auth/me`, {
     headers: { Cookie: `firebase_session=${encodeURIComponent(session)}` },
-    cache: "no-store", signal: AbortSignal.timeout(5000),
+    cache: "no-store", signal: AbortSignal.timeout(20000),
   });
   if (response.status === 401) return null;
   if (!response.ok) throw new Error("Login service is unavailable. Check that the backend is running.");

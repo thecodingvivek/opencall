@@ -7,7 +7,8 @@ export async function GET() {
   try {
     const user = await currentUser();
     return NextResponse.json({ authenticated: !!user }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
+  } catch (error) {
+    console.error("Session check unavailable", error instanceof Error ? error.name : "UnknownError");
     return NextResponse.json({ error: "Login service unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }
@@ -36,9 +37,12 @@ export async function POST(request: Request) {
     const session = await auth.createSessionCookie(idToken, { expiresIn });
     const synced = await fetch(`${backendUrl}/api/v1/auth/me`, {
       headers: { Cookie: `firebase_session=${encodeURIComponent(session)}` },
-      cache: "no-store", signal: AbortSignal.timeout(15000),
+      cache: "no-store", signal: AbortSignal.timeout(20000),
     });
-    if (!synced.ok) return NextResponse.json({ error: "Account sync unavailable" }, { status: 503 });
+    if (!synced.ok) {
+      console.error("Account sync unavailable", synced.status);
+      return NextResponse.json({ error: "Account sync unavailable" }, { status: 503 });
+    }
     const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
     response.cookies.set("firebase_session", session, {
       httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: expiresIn / 1000,
