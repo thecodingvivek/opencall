@@ -13,6 +13,7 @@ from app.services.conversation import AGENT_NAME, ConversationOptions
 from app.services.phonebook import PhonebookEntry, get_phonebook_store, update_description_after_session
 from app.services.realtime_speech import ConversationTTS
 from app.services.prisma_stt import PrismaSTT
+from app.services.turn_language import LANGUAGES, TurnLanguage
 from app.services.agent_steps import send_step
 from tools import AGENT_TOOLS
 
@@ -75,9 +76,18 @@ server = AgentServer(
 
 
 class FarmingAgent(Agent):
+    def __init__(self, *, language_state=None, speech=None, **kwargs):
+        super().__init__(**kwargs)
+        self.language_state = language_state or TurnLanguage()
+        self.speech = speech
+
     async def on_user_turn_completed(self, turn_ctx: ChatContext, new_message: ChatMessage) -> None:
+        language = self.language_state.complete_turn(new_message.text_content)
+        if self.speech is not None:
+            self.speech.turn_language = language
+        hint = f"Use {LANGUAGES[language][0]} for this reply unless the caller explicitly requests another language. " if language else ""
         turn_ctx.add_message(role="system", content=(
-            "For the next reply, use the language of the caller's latest utterance. "
+            hint + "For the next reply, use the language of the caller's latest utterance. "
             "If they explicitly request a language, use that language instead. "
             "Write in the language's native script, and do not translate into English unless asked. "
             "If the language is unclear, ask a short clarification."
@@ -119,6 +129,7 @@ async def conversation(ctx: JobContext):
                     language="indic-auto" if bilingual else options.language_code, sample_rate=16000, use_streaming=True)
     tts = ConversationTTS(api_key=settings.gnani_api_key.get_secret_value(),
                           voice=options.voice, language=options.language_code)
+    language_state = TurnLanguage()
     session = AgentSession(
         stt=stt,
         llm=openai.LLM(
@@ -137,6 +148,10 @@ async def conversation(ctx: JobContext):
                              "min_words": 0, "resume_false_interruption": True},
         },
     )
+
+    @session.on("user_input_transcribed")
+    def on_user_input_transcribed(event):
+        language_state.on_transcript(event)
 
     @session.on("close")
     def on_close(_event):
@@ -186,7 +201,7 @@ async def conversation(ctx: JobContext):
             asyncio.create_task(send_step("phonebook_lookup", {"found": bool(entry.description.strip())}))
 
     await ctx.wait_for_participant(identity=identity)
-    agent = FarmingAgent(instructions=(
+    agent = FarmingAgent(language_state=language_state, speech=tts, instructions=(
             FARMING_INSTRUCTIONS
             + ("Initially greet in Hindi. Reply in the language of the user's latest speech or explicit preference; "
                "use its native script. When unsure, briefly ask which language the caller prefers. "

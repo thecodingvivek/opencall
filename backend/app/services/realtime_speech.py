@@ -34,6 +34,7 @@ class ConversationTTS(tts.TTS):
         self._socket = None
         self._lock = asyncio.Lock()
         self._closed = False
+        self.turn_language = None
 
     @property
     def model(self) -> str:
@@ -44,14 +45,17 @@ class ConversationTTS(tts.TTS):
         return "Gnani"
 
     def synthesize(self, text: str, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS):
-        language = self._language
+        language = self.turn_language or self._language
         for start, end, script_language in SCRIPT_LANGUAGES:
             if any(start <= char <= end for char in text):
                 language = script_language
                 break
         else:
             if language in {"hi-IN", "en-IN"}:
-                language = "hi-IN" if any("\u0900" <= char <= "\u097f" for char in text) else "en-IN"
+                if any("\u0900" <= char <= "\u097f" for char in text):
+                    language = "mr-IN" if language == "mr-IN" else "hi-IN"
+                elif not self.turn_language:
+                    language = "en-IN"
         return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=language)
 
     async def _connect(self):

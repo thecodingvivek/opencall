@@ -16,7 +16,9 @@ and reuses its TTS WebSocket across completed sentences. Interrupted or failed
 requests discard the socket; the next request reconnects. The 400 ms startup
 buffer remains in place. The first request still opens the connection on demand.
 The crop database lookup also runs in a worker thread, leaving the event loop
-free while it waits for the database.
+free while it waits for the database. Prisma's per-transcript detected language
+is now passed to the turn prompt and used as a TTS language hint. Explicit
+language requests are recognized by a best-effort phrase matcher.
 The measurements and other recommendations below remain a historical plan and have
 not yet been verified in a real call.
 
@@ -230,19 +232,18 @@ language_code: hi-IN,en-IN
 The plugin's own `GnaniSTTLanguages` type also lists `"en-IN,hi-IN"` as the
 auto-detection value.
 
-### 3.3 Use the detected language instead of guessing from script
+### 3.3 Use the detected language instead of guessing from script (implemented)
 
-Prisma v3.0 returns `detected_language_code` on each transcript. The plugin
-ignores it and labels every transcript with the configured language. Then
-`ConversationTTS.synthesize` re-guesses the reply language from Unicode ranges,
-and `FarmingAgent.on_user_turn_completed` asks the LLM to guess again.
+Prisma v3.0's `detected_language_code` is passed through `SpeechData.language`.
+The worker applies the final transcript's language to the next reply prompt and
+TTS, provided it matches the completed turn. A recognized explicit request to
+reply in a named language takes precedence. TTS still uses native script as a
+signal when it differs from the hint; absent or unsupported detection falls
+back to the previous behavior.
 
-Pass `detected_language_code` through as `SpeechData.language`, and use it to:
-
-- tell the LLM which language the caller used on that turn, instead of a
-  generic "use the caller's language" instruction;
-- pick the TTS `language` field directly. Romanised Hindi ("mera khet") has no
-  Devanagari, so the script check currently sends it to `en-IN`.
+Gnani says the detection is derived from the transcript's script, and the
+explicit-request matcher recognizes common phrases rather than every possible
+wording. Mixed and romanized speech therefore need real-call evaluation.
 
 ### 3.4 Add farming vocabulary with `keyterms`
 
@@ -331,7 +332,7 @@ judged by impression. Keep recordings out of Git and out of the build context.
 | 4 | Prewarm VAD, embedding model, DB pool (2.4) | Small | No model loads during a call |
 | 5 | Custom Gnani STT stream: Prisma v3.0, `hi-IN,en-IN`, `keyterms`, idle timeout; keep 500 ms silence (2.2, 3.1–3.4, 3.6) | Medium | Better recognition without splitting turns |
 | 6 | TTS connection reuse; keep the 400 ms startup buffer (2.3, implemented) | Medium | Fewer connection handshakes and potential gaps between sentences |
-| 7 | Detected language drives TTS and reply language (3.3) | Medium | Fewer wrong-language replies |
+| 7 | Detected language drives TTS and reply language (3.3, implemented) | Medium | Language hints for replies and TTS; real-call evaluation needed |
 | 8 | STT evaluation set (3.9), then `codemix` and audio capture A/B tests (3.5, 3.8) | Medium | Measured STT improvements |
 | 9 | Fixed greeting, preemptive TTS, filler lines (2.6, 2.7, 2.5) | Small | Shorter perceived waits |
 

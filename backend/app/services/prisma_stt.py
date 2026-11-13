@@ -7,7 +7,7 @@ from dataclasses import replace
 import websockets
 from livekit.agents import (
     DEFAULT_API_CONNECT_OPTIONS, APIConnectionError, APIConnectOptions,
-    APIStatusError, APITimeoutError, utils,
+    APIStatusError, APITimeoutError, LanguageCode, stt, utils,
 )
 from livekit.agents.types import NOT_GIVEN, NotGivenOr
 from livekit.agents.utils.misc import is_given
@@ -71,3 +71,32 @@ class PrismaSpeechStream(SpeechStream):
             raise
         except Exception as exc:
             raise APIConnectionError(f"Gnani STT WebSocket error: {exc}") from exc
+
+    async def _recv_messages(self, ws):
+        try:
+            async for message in ws:
+                if isinstance(message, bytes):
+                    continue
+                data = json.loads(message)
+                kind = data.get("type", "")
+                if kind == "transcript" and data.get("text"):
+                    detected = data.get("detected_language_code")
+                    language = detected if isinstance(detected, str) else ""
+                    self._event_ch.send_nowait(stt.SpeechEvent(
+                        type=stt.SpeechEventType.FINAL_TRANSCRIPT,
+                        request_id=data.get("segment_id", ""),
+                        alternatives=[stt.SpeechData(language=LanguageCode(language),
+                                                     text=data["text"], confidence=1.0)],
+                    ))
+                elif kind in ("speech_start", "vad_start"):
+                    self._event_ch.send_nowait(stt.SpeechEvent(type=stt.SpeechEventType.START_OF_SPEECH))
+                elif kind in ("speech_end", "vad_end"):
+                    self._event_ch.send_nowait(stt.SpeechEvent(type=stt.SpeechEventType.END_OF_SPEECH))
+                elif kind == "error":
+                    raise APIStatusError(message="Gnani STT stream error", status_code=500)
+        except asyncio.CancelledError:
+            raise
+        except (APIStatusError, APIConnectionError, APITimeoutError):
+            raise
+        except Exception as exc:
+            raise APIConnectionError("Error receiving Gnani STT messages") from exc
