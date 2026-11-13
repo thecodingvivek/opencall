@@ -16,7 +16,8 @@ and reuses its TTS WebSocket across completed sentences. Interrupted or failed
 requests discard the socket; the next request reconnects. The 400 ms startup
 buffer remains in place. The first request still opens the connection on demand.
 The crop database lookup also runs in a worker thread, leaving the event loop
-free while it waits for the database. Prisma's per-transcript detected language
+free while it waits for the database. The embedding model has since been removed;
+crop guidance now uses PostgreSQL text search. Prisma's per-transcript detected language
 is now passed to the turn prompt and used as a TTS language hint. Explicit
 language requests are recognized by a best-effort phrase matcher.
 The measurements and other recommendations below remain a historical plan and have
@@ -140,10 +141,9 @@ one's audio arrives. That gap is another source of choppy-sounding speech.
 
 ### 2.4 Prewarm per-process resources
 
-`silero.VAD.load()` runs inside every job, and the multilingual embedding model
-in `backend/tools/crop_knowledge.py` loads lazily on the first crop question,
-which puts model load time inside a live reply. The Postgres pool uses
-`min_size=0`, so the first query in a process also pays a TLS connect to Supabase.
+`silero.VAD.load()` runs inside every job. The Postgres pool uses `min_size=0`,
+so the first query in a process also pays a TLS connect to Supabase. The crop
+embedding model has been removed, so there is no embedding model to prewarm.
 
 Use the worker's setup hook (`AgentServer.setup_fnc`) to load these once per
 process:
@@ -151,7 +151,6 @@ process:
 ```python
 def prewarm(proc):
     proc.userdata["vad"] = silero.VAD.load(min_silence_duration=0.35)
-    crop_knowledge._model()      # warm the fastembed model
     get_pool()                   # consider min_size=1 for the worker
 
 server.setup_fnc = prewarm
@@ -268,7 +267,7 @@ single words.
 Farmers often mix English product names into Hindi or Telugu speech. The
 `codemix` format (Prisma v3.0) keeps English words in Latin script, so "DAP"
 reaches the LLM and the crop search as `DAP` rather than a Devanagari spelling.
-Embedding search and tool arguments both benefit. Compare `verbatim` and
+Text search and tool arguments may benefit. Compare `verbatim` and
 `codemix` on the same recordings before switching.
 
 ### 3.6 Tune Gnani VAD for a browser microphone
@@ -329,7 +328,7 @@ judged by impression. Keep recordings out of Git and out of the build context.
 | 1 | Log turn metrics (section 0) | Small | Baseline for all later steps |
 | 2 | `reasoning_effort="low"` (2.1) | One line | Lower LLM first-token time |
 | 3 | Move crop DB query off the event loop (2.5, implemented) | Small | Avoid event-loop stalls from the crop DB query |
-| 4 | Prewarm VAD, embedding model, DB pool (2.4) | Small | No model loads during a call |
+| 4 | Prewarm VAD and DB pool (2.4) | Small | Reduce per-call setup and first-query delays |
 | 5 | Custom Gnani STT stream: Prisma v3.0, `hi-IN,en-IN`, `keyterms`, idle timeout; keep 500 ms silence (2.2, 3.1–3.4, 3.6) | Medium | Better recognition without splitting turns |
 | 6 | TTS connection reuse; keep the 400 ms startup buffer (2.3, implemented) | Medium | Fewer connection handshakes and potential gaps between sentences |
 | 7 | Detected language drives TTS and reply language (3.3, implemented) | Medium | Language hints for replies and TTS; real-call evaluation needed |

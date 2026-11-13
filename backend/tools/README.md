@@ -16,11 +16,12 @@ lookups, advice, and searches do not create jobs.
 ## Crop guidance: `search_crop_knowledge`
 
 For crop symptoms and disease or deficiency questions, the agent retrieves the
-closest sourced records from `opencall.crop_knowledge` with pgvector cosine
-search. Query embeddings use the multilingual MiniLM model in FastEmbed. Records
-are curated in `backend/data/crop_knowledge_seed.json`; re-run the ingestion
-command in `backend/README.md` after reviewing seed changes. Each result includes
-its source URL. The agent must not treat a similarity match as a diagnosis, and
+matching sourced records from `opencall.crop_knowledge` with PostgreSQL text
+search. Unlike semantic search, matching can fail for paraphrases or languages
+not represented in the records. Records are curated in
+`backend/data/crop_knowledge_seed.json`; apply migration 006 before inserting new
+records and re-run the ingestion command after reviewing seed changes. Each result
+includes its source URL. The agent must not treat a text match as a diagnosis, and
 must defer chemical use to the current registered product label and local expert.
 
 The assistant can check current weather, daily forecasts, hourly periods, and

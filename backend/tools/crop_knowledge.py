@@ -1,38 +1,37 @@
 """Multilingual semantic retrieval for sourced crop-health guidance."""
-from functools import lru_cache
 import asyncio
 import logging
 
-from fastembed import TextEmbedding
 from livekit.agents import ToolError, function_tool
 
 from app.core.postgres import get_pool
 from app.services.agent_steps import send_step
 
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-
-@lru_cache(maxsize=1)
-def _model() -> TextEmbedding:
-    return TextEmbedding(model_name=MODEL_NAME)
-
-
-def _embed(query: str) -> list[float]:
-    return list(next(_model().embed([query])))
-
-
-def _query_crop_knowledge(embedding: list[float], crop: str | None, region: str | None):
+def _query_crop_knowledge(query: str, crop: str | None, region: str | None):
     with get_pool().connection() as conn:
         return conn.execute("""
-            SELECT * FROM opencall.search_crop_knowledge(
-              %s::extensions.vector(384), %s, %s, 5
-            ) WHERE similarity >= 0.35
-        """, (embedding, crop, region)).fetchall()
+            WITH needle AS (SELECT websearch_to_tsquery('english', %s) AS terms),
+                 candidates AS (
+                   SELECT crop, problem, symptoms, cause, fertilizer, treatment,
+                          dosage, safety_note, region, source_url,
+                          to_tsvector('english', concat_ws(' ', crop, problem, symptoms, cause)) AS document
+                   FROM opencall.crop_knowledge
+                   WHERE (%s::text IS NULL OR lower(crop) = lower(%s::text))
+                     AND (%s::text IS NULL OR 'all' = ANY(region)
+                          OR EXISTS (SELECT 1 FROM unnest(region) AS r WHERE lower(r) = lower(%s::text)))
+                 )
+            SELECT crop, problem, symptoms, cause, fertilizer, treatment, dosage, safety_note, region, source_url
+            FROM candidates CROSS JOIN needle
+            WHERE numnode(terms) > 0 AND document @@ terms
+            ORDER BY ts_rank(document, terms) DESC
+            LIMIT 5
+        """, (query, crop, crop, region, region)).fetchall()
 
 
 @function_tool
 async def search_crop_knowledge(query: str, crop: str | None = None, region: str | None = None) -> str:
-    """Find sourced crop disease, pest, and nutrient guidance by symptoms or question.
+    """Find sourced crop disease, pest, and nutrient guidance using text search.
 
     Args:
         query: Crop problem, observed symptoms, or farming question in the farmer's own words.
@@ -46,15 +45,14 @@ async def search_crop_knowledge(query: str, crop: str | None = None, region: str
         raise ToolError("Give a crop-health question up to 1000 characters and shorter optional crop and region names.")
     await send_step("crop_search_started", {"crop": crop})
     try:
-        embedding = await asyncio.to_thread(_embed, query)
-        rows = await asyncio.to_thread(_query_crop_knowledge, embedding, crop, region)
+        rows = await asyncio.to_thread(_query_crop_knowledge, query, crop, region)
     except Exception as error:
         logging.getLogger(__name__).warning("Crop knowledge search failed: %s", type(error).__name__)
         await send_step("crop_search_failed", {})
         raise ToolError("Crop guidance search is unavailable. Do not guess a diagnosis or treatment.") from None
     await send_step("crop_search_completed", {"matches": len(rows)})
     if not rows:
-        raise ToolError("No sufficiently similar sourced crop guidance was found. Ask for more symptoms or recommend a local KVK/agricultural officer.")
+        raise ToolError("No matching sourced crop guidance was found. Ask for more symptoms or recommend a local KVK/agricultural officer.")
     return "\n\n".join(
         f"Crop: {row['crop']}\nProblem: {row['problem']}\nSymptoms: {row['symptoms']}\nCause: {row['cause']}\n"
         f"Fertilizer: {row['fertilizer']}\nTreatment: {row['treatment']}\nDosage: {row['dosage']}\n"

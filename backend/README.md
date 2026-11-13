@@ -71,10 +71,11 @@ Firebase session cookie, which the backend verifies before syncing the user's
 identity to the Supabase Postgres `opencall.users` table. Set `DATABASE_URL`
 and Firebase service-account configuration in `backend/.env`; see `.env.example`.
 Apply `backend/migrations/001_users.sql`, `002_farming_tasks.sql`, and
-`003_crop_knowledge.sql` to the target database. Seed the crop guidance with
-`PYTHONPATH=.:backend backend/.venv-voice/bin/python -m tools.ingest_crop_knowledge`.
-The multilingual embedding model is downloaded on first local use and preloaded
-into the LiveKit worker image. Reviewed seed records and source URLs are in
+`003_crop_knowledge.sql` to the target database, followed by
+`006_optional_crop_embeddings.sql` before seeding new crop records. Seed the crop
+guidance with `PYTHONPATH=.:backend backend/.venv-voice/bin/python -m tools.ingest_crop_knowledge`.
+The worker searches reviewed crop records using Postgres text search; it does not
+load an embedding model. Reviewed records and sources are in
 `backend/data/crop_knowledge_seed.json`.
 The API and voice worker must connect to the same database. A user without a
 phone number receives a generated identifier; phonebook descriptions are stored
