@@ -9,6 +9,3 @@ psycopg[binary,pool]==3.3.8
 psycopg-pool==3.3.3
 firebase-admin==7.7.0
 dnspython==2.8.0
-livekit-plugins-silero==1.8.9
-livekit-plugins-openai==1.8.9
-fastembed>=0.9.1,<1.0.0

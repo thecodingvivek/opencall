@@ -1,2 +1,5 @@
-# Shared runtime remains in backend; build from the repository root.
+# Dependencies for the persistent LiveKit worker.
 -r ../backend/requirements.txt
+livekit-plugins-silero==1.8.9
+livekit-plugins-openai==1.8.9
+fastembed>=0.9.1,<1.0.0

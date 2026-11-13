@@ -103,7 +103,7 @@ async function service(name: string, command: string[], cwd: string, ready: () =
 }
 
 async function main() {
-  if (!existsSync(python)) throw new Error("Create backend/.venv-voice and install backend/requirements.txt first.");
+  if (!existsSync(python)) throw new Error("Create backend/.venv-voice and install backend/requirements-dev.txt first.");
   mkdirSync(resolve(backend, "data"), { recursive: true });
   if (existsSync(pidFile)) {
     const pid = Number(readFileSync(pidFile, "utf8"));

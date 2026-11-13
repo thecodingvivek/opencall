@@ -10,10 +10,14 @@ Run from the repository root:
 cd backend
 python3.13 -m venv .venv-voice
 source .venv-voice/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 cp .env.example .env
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+For the Vercel HTTP API, `requirements.txt` contains only HTTP runtime dependencies.
+The local development requirements also install the LiveKit voice worker dependencies;
+`voiceagent/requirements.txt` installs them for the worker deployment.
 
 Use a dedicated virtual environment for this backend. If an older `.venv` also
 contains Google ADK or LiteLLM, those unrelated packages can conflict with
