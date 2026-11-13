@@ -92,6 +92,7 @@ class _AudioStream(tts.ChunkedStream):
         started = False
         startup_bytes = provider.sample_rate * 2 * STARTUP_BUFFER_MS // 1000
         complete = False
+        saw_start = False
         try:
             async with asyncio.timeout(self._conn_options.timeout):
                 async with provider._lock:
@@ -113,6 +114,15 @@ class _AudioStream(tts.ChunkedStream):
                                 data = json.loads(message)
                                 if data.get("type") == "error":
                                     raise APIStatusError("Gnani speech stream failed", status_code=502)
+                                if data.get("type") == "start":
+                                    saw_start = True
+                                    continue
+                                # Gnani can send a second, request-level completion after
+                                # the final audio event. It belongs to the preceding
+                                # request if it arrives before this request's start.
+                                if (data.get("type") == "complete" and data.get("request_id")
+                                        and not saw_start):
+                                    continue
                                 body = data.get("data") or {}
                                 audio = base64.b64decode(body.get("audio", ""), validate=True)
                                 final = data.get("type") == "complete" or body.get("is_final", False)

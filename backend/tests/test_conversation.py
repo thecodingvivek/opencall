@@ -87,6 +87,8 @@ class Socket:
         self.messages = iter(messages)
         self.sent = []
         self.closed = False
+        from websockets.protocol import State
+        self.state = State.OPEN
     async def send(self, data): self.sent.append(json.loads(data))
     def __aiter__(self): return self
     async def __anext__(self):
@@ -128,3 +130,25 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
             async with provider.synthesize('Hello', conn_options=APIConnectOptions(max_retry=0)) as stream:
                 with self.assertRaises(Exception): await stream.collect()
         self.assertTrue(socket.closed)
+
+
+    async def test_reused_connection_skips_previous_request_completion(self):
+        socket = Socket([
+            json.dumps({'type': 'start', 'request_id': 'first'}),
+            message(b'aa'), message(b'', True),
+            json.dumps({'type': 'complete', 'request_id': 'first'}),
+            json.dumps({'type': 'start', 'request_id': 'second'}),
+            message(b'bb'), message(b'', True),
+            json.dumps({'type': 'complete', 'request_id': 'second'}),
+            json.dumps({'type': 'start', 'request_id': 'third'}),
+            message(b'cc'), message(b'', True),
+        ])
+        provider = ConversationTTS(api_key='test-key', voice='Shivani', language='en-IN')
+        with patch('app.services.realtime_speech.websockets.connect', new=AsyncMock(return_value=socket)) as connect:
+            for text, expected in [('First', b'aa'), ('Second', b'bb'), ('Third', b'cc')]:
+                async with provider.synthesize(text, conn_options=APIConnectOptions(max_retry=0)) as stream:
+                    result = await stream.collect()
+                self.assertEqual(bytes(result.data)[:2], expected)
+            self.assertEqual(connect.await_count, 1)
+            self.assertEqual([item['text'] for item in socket.sent], ['First', 'Second', 'Third'])
+            await provider.aclose()
