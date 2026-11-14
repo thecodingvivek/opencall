@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenCall — Try</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { font-family: Inter, Arial, Helvetica, sans-serif; color: #171717; -webkit-font-smoothing: antialiased; }
+    main { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); min-height: 100vh; overflow: hidden; background: white; }
+    .footer { position: absolute; bottom: 0; left: 50%; width: 180%; transform: translate(-50%, 62%); pointer-events: none; }
+    .footer img { display: block; width: 100%; height: auto; }
+    nav { position: absolute; inset: 0 0 auto; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; }
+    .brand { font-size: 16px; font-weight: 500; letter-spacing: -.025em; }
+    .nav-actions { display: flex; gap: 8px; }
+    .pill { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 13px; border-radius: 9px; background: #f3f3f3; box-shadow: inset 0 0 0 1px #12121214, 0 1px 2px #1212120a; color: #343433; font-size: 13px; font-weight: 500; letter-spacing: -.009em; white-space: nowrap; }
+    .phonebook { display: flex; min-width: 0; align-items: center; padding: 0 24px; }
+    .phonebook-inner { width: 100%; max-width: 384px; margin: 0 auto; }
+    .heading { margin: 0; color: #777; font-size: 12px; font-weight: 600; letter-spacing: .05em; line-height: 16px; text-transform: uppercase; }
+    .tool { margin-bottom: 32px; }
+    .muted { margin: 8px 0 0; color: #999; font-size: 14px; line-height: 24px; }
+    .call { position: relative; display: flex; align-items: center; justify-content: center; }
+    .voice { position: absolute; bottom: calc(50% + 105px); left: 50%; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; transform: translateX(-50%); color: #777; font-size: 12px; font-weight: 500; }
+    .voice-choice { display: flex; align-items: center; gap: 16px; padding: 8px 12px 8px 16px; border: 1px solid #e2e2e2; border-radius: 9999px; background: white; color: #343433; font-size: 14px; line-height: 20px; }
+    .voice-choice svg { width: 16px; height: 16px; color: #777; }
+    .orb { display: block; width: 160px; height: 160px; }
+    .flow { position: absolute; top: 50%; width: min(12vw, 120px); height: 160px; transform: translateY(-50%); }
+    .flow.left { right: 100%; } .flow.right { left: 100%; }
+    .call-action { position: absolute; bottom: 40px; left: 50%; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 10px; height: 52px; padding: 0 30px; transform: translateX(-50%); border-radius: 9999px; background: #16a34a; box-shadow: 0 1px 2px #12121229; color: #fff; font-size: 13px; font-weight: 600; letter-spacing: -.009em; white-space: nowrap; }
+    .call-action svg { width: 16px; height: 16px; }
+    .conversation { position: relative; min-width: 0; padding: 0 24px; }
+    .conversation-content, .jobs-wrap { position: absolute; right: 24px; left: 24px; width: auto; max-width: 384px; margin: 0 auto; }
+    .conversation-content { bottom: 50%; }
+    .jobs-wrap { top: 50%; padding-top: 32px; }
+    .jobs { position: relative; display: flex; min-height: 96px; flex-direction: column; gap: 12px; overflow: hidden; padding: 12px 16px; border: 1px solid #e5e5e5; border-radius: 16px; background: #f7f7f7; }
+    .jobs .muted { margin: 0; line-height: 20px; }
+    .cursor { position: absolute; right: 16px; bottom: 8px; width: 40px; height: 48px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="footer" aria-hidden="true"><img src="footer-figma.svg" alt=""></div>
+    <nav aria-label="Main navigation"><span class="brand">Opencall</span><div class="nav-actions"><span class="pill">Back</span><span class="pill">Log out</span></div></nav>
+    <section class="phonebook" aria-label="Phonebook"><div class="phonebook-inner"><p class="heading tool">Maps tool</p><p class="heading tool">Weather tool</p><h2 class="heading">Phonebook</h2><p class="muted">No phone number provided<br>No description yet.</p></div></section>
+    <section class="call" aria-label="Call">
+      <div class="voice">Voice<span class="voice-choice">Shivani<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></div>
+      <svg class="flow left" viewBox="0 0 120 160" preserveAspectRatio="none" fill="none" stroke="#d4d4d4" aria-hidden="true"><path d="M0 10 C60 10 60 80 120 80 M0 35 C60 35 60 80 120 80 M0 60 C60 60 60 80 120 80 M0 100 C60 100 60 80 120 80 M0 125 C60 125 60 80 120 80 M0 150 C60 150 60 80 120 80" vector-effect="non-scaling-stroke"/></svg>
+      <svg class="orb" viewBox="0 0 160 160" role="img" aria-label="Glass sphere containing colorful liquid"><defs><radialGradient id="glass" cx="34%" cy="22%" r="78%"><stop stop-color="#fff"/><stop offset=".22" stop-color="#e9fff7"/><stop offset=".55" stop-color="#8ce7c6"/><stop offset=".8" stop-color="#31aab0"/><stop offset="1" stop-color="#dcecf0"/></radialGradient><linearGradient id="liquid" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#d9efa0"/><stop offset=".35" stop-color="#41cfb4"/><stop offset="1" stop-color="#1744a0"/></linearGradient><clipPath id="sphere"><circle cx="80" cy="80" r="73"/></clipPath></defs><circle cx="80" cy="80" r="75" fill="url(#glass)" stroke="#d9e8e9" stroke-width="2"/><g clip-path="url(#sphere)"><path d="M7 62 Q44 72 80 61 T153 62 V153 H7Z" fill="url(#liquid)" opacity=".8"/><ellipse cx="80" cy="62" rx="71" ry="10" fill="#b7edb7" opacity=".38"/><ellipse cx="53" cy="31" rx="31" ry="12" fill="#fff" opacity=".3"/><ellipse cx="80" cy="80" rx="70" ry="71" fill="none" stroke="#fff" stroke-width="5" opacity=".5"/></g></svg>
+      <svg class="flow right" viewBox="0 0 120 160" preserveAspectRatio="none" fill="none" stroke="#d4d4d4" aria-hidden="true"><path d="M0 80 C60 80 60 10 120 10 M0 80 C60 80 60 35 120 35 M0 80 C60 80 60 60 120 60 M0 80 C60 80 60 100 120 100 M0 80 C60 80 60 125 120 125 M0 80 C60 80 60 150 120 150" vector-effect="non-scaling-stroke"/></svg>
+      <span class="call-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.35 1.91.68 2.82a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.86.56 2.82.68A2 2 0 0 1 22 16.92z"/></svg>Call agent</span>
+    </section>
+    <section class="conversation" aria-label="Conversation"><div class="conversation-content"><h2 class="heading">Agent</h2><p class="muted">Your conversation will appear here.</p></div><div class="jobs-wrap"><div class="jobs"><p class="heading">Subagents and jobs</p><p class="muted">No current jobs</p><svg class="cursor" viewBox="0 0 69 84" aria-hidden="true"><defs><radialGradient id="cursor-orb" cx="30%" cy="25%" r="75%"><stop stop-color="#fce6b5"/><stop offset=".5" stop-color="#a2cfb4"/><stop offset="1" stop-color="#738dc2"/></radialGradient></defs><circle cx="26" cy="38" r="12" fill="url(#cursor-orb)"/><path d="M5 5 Q4 3 7 5 L43 27 Q47 30 42 31 L25 34 Q23 34 22 36 L13 49 Q10 53 9 48 Z" transform="scale(.75)" fill="#171717" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></section>
+  </main>
+</body>
+</html>
