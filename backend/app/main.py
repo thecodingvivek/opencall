@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import asyncio
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,14 +8,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.postgres import get_pool
+from app.services.auth import get_firebase_app
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Warm up so the first sign-in does not pay for DNS, TLS and SDK setup.
+    try:
+        await asyncio.to_thread(get_pool)
+        await asyncio.to_thread(get_firebase_app)
+    except Exception as error:
+        logging.getLogger(__name__).warning("Startup warm-up failed: %s", type(error).__name__)
     try:
         yield
     finally:
-        get_pool().close()
+        if get_pool.cache_info().currsize:
+            get_pool().close()
         get_pool.cache_clear()
 
 

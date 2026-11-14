@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
-from app.api.routes.auth import CurrentUser
+from app.api.routes.auth import CurrentUser, FreshUser
 from app.services.conversation import ConnectionDetails, ConversationOptions, create_connection, ensure_voice_available
 from app.services.phonebook import DescriptionUpdate, PhonebookEntry, PhonebookStore, get_phonebook_store
 from app.services.tasks import list_tasks
@@ -24,7 +24,7 @@ def tasks(response: Response, user: CurrentUser):
 
 
 @router.post("/guest-connect", response_model=ConnectionDetails)
-async def guest_connect(options: ConversationOptions, response: Response, user: CurrentUser) -> ConnectionDetails:
+async def guest_connect(options: ConversationOptions, response: Response, user: FreshUser) -> ConnectionDetails:
     if not user["onboarded"]:
         raise HTTPException(403, "Complete onboarding before starting a call")
     try:
@@ -39,7 +39,7 @@ async def guest_connect(options: ConversationOptions, response: Response, user: 
 
 
 @router.post("/connect", response_model=ConnectionDetails)
-async def connect(options: ConversationOptions, response: Response, user: CurrentUser) -> ConnectionDetails:
+async def connect(options: ConversationOptions, response: Response, user: FreshUser) -> ConnectionDetails:
     if not user["onboarded"]:
         raise HTTPException(403, "Complete onboarding before starting a call")
     try:
@@ -64,7 +64,7 @@ def phonebook(response: Response, user: CurrentUser, store: Store):
 
 
 @router.put("/phonebook", response_model=PhonebookEntry)
-def update_phonebook(payload: DescriptionUpdate, response: Response, user: CurrentUser, store: Store):
+def update_phonebook(payload: DescriptionUpdate, response: Response, user: FreshUser, store: Store):
     response.headers["Cache-Control"] = "no-store"
     try:
         return store.set_description(user["username"], payload.description)

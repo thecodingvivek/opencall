@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from fastapi.testclient import TestClient
 
-from app.api.routes.auth import require_user
+from app.api.routes.auth import require_fresh_user, require_user
 from app.main import app
 from app.services.phonebook import PhonebookEntry, PhonebookStore, get_phonebook_store, update_description_after_session
 
@@ -42,6 +42,7 @@ class PhonebookApiTests(unittest.TestCase):
         self.store.get.return_value = PhonebookEntry(username='account', description='A farmer.')
         self.store.set_description.return_value = PhonebookEntry(username='account', description='A teacher.')
         app.dependency_overrides[require_user] = lambda: {'username': 'account', 'onboarded': True}
+        app.dependency_overrides[require_fresh_user] = lambda: {'username': 'account', 'onboarded': True}
         app.dependency_overrides[get_phonebook_store] = lambda: self.store
         self.addCleanup(app.dependency_overrides.clear)
         self.client = TestClient(app)
@@ -55,7 +56,9 @@ class PhonebookApiTests(unittest.TestCase):
         self.store.set_description.assert_called_once_with('account', 'A teacher.')
         self.assertEqual(self.client.put(endpoint, json={'username': 'other', 'description': 'forged'}).status_code, 422)
         app.dependency_overrides.pop(require_user)
+        app.dependency_overrides.pop(require_fresh_user)
         self.assertEqual(self.client.get(endpoint).status_code, 401)
+        self.assertEqual(self.client.put(endpoint, json={'description': 'x'}).status_code, 401)
 
     def test_database_errors_are_safe_and_recoverable(self):
         self.store.get.side_effect = RuntimeError("private database details")

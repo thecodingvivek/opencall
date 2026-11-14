@@ -46,6 +46,7 @@ def get_pool() -> ConnectionPool:
     local_cert = Path(__file__).resolve().parents[2] / "prod-ca-2021.crt"
     if root_cert is None and local_cert.is_file():
         root_cert = local_cert
-    return ConnectionPool(conninfo, min_size=0, max_size=4, timeout=10, open=True,
+    # min_size=1 keeps one TLS connection open so requests skip the ~0.5 s connect.
+    return ConnectionPool(conninfo, min_size=1, max_size=4, timeout=10, open=True,
                           kwargs={"hostaddr": address, "connect_timeout": 8, "sslmode": "verify-full", "sslrootcert": str(root_cert) if root_cert else certifi.where(),
                                   "row_factory": dict_row, "prepare_threshold": None})

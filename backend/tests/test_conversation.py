@@ -9,13 +9,14 @@ from livekit.agents import APIConnectOptions
 from pydantic import SecretStr
 
 from app.main import app
-from app.api.routes.auth import require_user
+from app.api.routes.auth import require_fresh_user, require_user
 from app.services.realtime_speech import ConversationTTS
 
 
 class TokenTests(unittest.TestCase):
     def setUp(self):
         app.dependency_overrides[require_user] = lambda: {"username": "demo", "onboarded": True}
+        app.dependency_overrides[require_fresh_user] = lambda: {"username": "demo", "onboarded": True}
         self.addCleanup(app.dependency_overrides.clear)
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
@@ -61,6 +62,7 @@ class TokenTests(unittest.TestCase):
         metadata = json.loads(claims['roomConfig']['agents'][0]['metadata'])
         self.assertEqual(metadata['username'], 'demo')
         app.dependency_overrides.pop(require_user)
+        app.dependency_overrides.pop(require_fresh_user)
         self.assertEqual(self.client.post('/api/v1/conversation/connect', json={}).status_code, 401)
         self.assertEqual(self.client.get('/api/v1/conversation/phonebook').status_code, 401)
 

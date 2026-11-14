@@ -7,6 +7,16 @@ export async function POST(request: Request, context: { params: Promise<{ action
     return Response.json({ detail: "Invalid request origin" }, { status: 403 });
   }
   if (action === "logout") {
+    // Revoke the Firebase session on the backend; clear the cookie even if that fails.
+    try {
+      const revoked = await fetch(`${backendUrl}/api/v1/auth/logout`, {
+        method: "POST", headers: { Cookie: request.headers.get("cookie") || "" },
+        cache: "no-store", signal: AbortSignal.timeout(5000),
+      });
+      if (!revoked.ok) console.error("Session revocation failed", revoked.status);
+    } catch (error) {
+      console.error("Session revocation unavailable", error instanceof Error ? error.name : "UnknownError");
+    }
     const response = new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
     response.headers.append("Set-Cookie", `firebase_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
     return response;

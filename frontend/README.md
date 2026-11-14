@@ -12,13 +12,13 @@ on `/try`. Microphone access requires localhost or HTTPS. The local launcher
 starts the frontend, API, LiveKit server and voice worker; see
 [backend setup](../backend/README.md) for provider and database configuration.
 
-For deployment, set `API_URL` to the public FastAPI origin and set
-`FIREBASE_SERVICE_ACCOUNT_JSON` to the full Firebase service-account JSON as a
-server-side secret. The backend also needs that secret, or a secure credential
-file configured with `FIREBASE_SERVICE_ACCOUNT_PATH`. Configure these variables
-on each respective hosting project, then redeploy. Never commit the key file.
-For local sign-in, set `FIREBASE_SERVICE_ACCOUNT_JSON` in `frontend/.env.local`
-to the JSON contents as well.
+For deployment, set `API_URL` to the public FastAPI origin. The frontend does
+not hold a Firebase service-account key: the browser's Google ID token is sent
+to the backend (`POST /api/v1/auth/session`), which verifies it, creates the
+session cookie and syncs the account. Configure the key only on the backend
+with `FIREBASE_SERVICE_ACCOUNT_JSON` or `FIREBASE_SERVICE_ACCOUNT_PATH`, then
+redeploy. Never commit the key file. Logging out calls
+`POST /api/v1/auth/logout`, which revokes the user's Firebase sessions.
 
 To run frontend checks:
 
