@@ -83,3 +83,68 @@ class DescriptionUpdateTests(unittest.IsolatedAsyncioTestCase):
             generate.assert_not_awaited()
             await update_description_after_session(store, 'account', ['I grow rice.'])
         store.set_description.assert_not_called()
+
+
+class SummaryModelTests(unittest.IsolatedAsyncioTestCase):
+    async def test_summary_uses_dedicated_model_and_logs_only_usage(self):
+        from pydantic import SecretStr
+        from app.services.phonebook import generate_description
+
+        response = MagicMock()
+        response.json = AsyncMock(return_value={
+            'choices': [{'finish_reason': 'stop', 'message': {'content': '{"description":"A rice farmer."}'}}],
+            'usage': {'prompt_tokens': 100, 'completion_tokens': 20, 'total_tokens': 120,
+                      'prompt_tokens_details': {'cached_tokens': 10}},
+        })
+        request = MagicMock()
+        request.__aenter__ = AsyncMock(return_value=response)
+        request.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = request
+        client = MagicMock()
+        client.__aenter__ = AsyncMock(return_value=session)
+        client.__aexit__ = AsyncMock(return_value=False)
+        settings = Mock(groq_api_key=SecretStr('test'), groq_model='openai/gpt-oss-20b',
+                        groq_summary_model='qwen/qwen3.8-27b')
+        with patch('app.services.phonebook.get_settings', return_value=settings), \
+             patch('app.services.phonebook.aiohttp.ClientSession', return_value=client), \
+             self.assertLogs('app.services.phonebook', level='INFO') as captured:
+            self.assertEqual(await generate_description('Farmer', 'I grow rice.'), 'A rice farmer.')
+        payload = session.post.call_args.kwargs['json']
+        self.assertEqual(payload['model'], 'qwen/qwen3.8-27b')
+        self.assertEqual(payload['reasoning_effort'], 'none')
+        self.assertEqual(payload['max_completion_tokens'], 512)
+        self.assertIn('task=phonebook_summary', captured.output[0])
+        self.assertIn('total_tokens=120', captured.output[0])
+        self.assertNotIn('I grow rice', captured.output[0])
+
+    async def test_large_session_is_bounded_while_preserving_both_ends(self):
+        store = Mock()
+        store.get.return_value = PhonebookEntry(username='account', description='', revision=1)
+        text = 'A' * 10000 + 'B' * 10000
+        with patch('app.services.phonebook.generate_description', new=AsyncMock(return_value='summary')) as generate:
+            await update_description_after_session(store, 'account', [text])
+        sent = generate.await_args.args[1]
+        self.assertLessEqual(len(sent), 12010)
+        self.assertTrue(sent.startswith('A' * 6000))
+        self.assertTrue(sent.endswith('B' * 6000))
+
+    async def test_incomplete_summary_does_not_replace_previous_description(self):
+        from pydantic import SecretStr
+        from app.services.phonebook import generate_description
+
+        response = MagicMock()
+        response.json = AsyncMock(return_value={'choices': [{'finish_reason': 'length'}]})
+        request = MagicMock()
+        request.__aenter__ = AsyncMock(return_value=response)
+        request.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.return_value = request
+        client = MagicMock()
+        client.__aenter__ = AsyncMock(return_value=session)
+        client.__aexit__ = AsyncMock(return_value=False)
+        settings = Mock(groq_api_key=SecretStr('test'), groq_summary_model='qwen/qwen3.8-27b')
+        with patch('app.services.phonebook.get_settings', return_value=settings), \
+             patch('app.services.phonebook.aiohttp.ClientSession', return_value=client):
+            with self.assertRaises(ValueError):
+                await generate_description('Existing facts', 'A new fact')

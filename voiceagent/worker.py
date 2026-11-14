@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli, room_io
+from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli, metrics, room_io
 from livekit.plugins import openai, silero
 from livekit.agents.llm import ChatContext, ChatMessage
 
@@ -94,6 +94,16 @@ class FarmingAgent(Agent):
         ))
 
 
+def start_greeting(session, *, bilingual: bool, description: str):
+    if bilingual and not description.strip():
+        return session.say("नमस्ते! मैं खेती में आपकी क्या मदद कर सकता हूँ?")
+    return session.generate_reply(instructions=(
+        ("Greet the user briefly in Hindi and ask how you can help with farming. " if bilingual else
+         "Greet the user briefly in their chosen language and ask how you can help with farming. ") +
+        "Use the caller description when relevant."
+    ))
+
+
 @server.rtc_session(agent_name=AGENT_NAME)
 async def conversation(ctx: JobContext):
     if not settings.gnani_api_key or not settings.groq_api_key:
@@ -148,6 +158,16 @@ async def conversation(ctx: JobContext):
                              "min_words": 0, "resume_false_interruption": True},
         },
     )
+
+    @session.on("metrics_collected")
+    def on_metrics_collected(event):
+        usage = event.metrics
+        if isinstance(usage, metrics.LLMMetrics):
+            logging.getLogger(__name__).info(
+                "Groq usage task=voice model=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s cached_tokens=%s reasoning_tokens=%s",
+                settings.groq_model, usage.prompt_tokens, usage.completion_tokens, usage.total_tokens,
+                usage.prompt_cached_tokens, usage.reasoning_tokens,
+            )
 
     @session.on("user_input_transcribed")
     def on_user_input_transcribed(event):
@@ -219,11 +239,7 @@ async def conversation(ctx: JobContext):
             video_input=False, text_input=False,
         ),
     )
-    greeting = session.generate_reply(instructions=(
-        ("Greet the user briefly in Hindi and ask how you can help with farming. " if bilingual else
-         "Greet the user briefly in their chosen language and ask how you can help with farming. ") +
-        "Use the caller description when relevant."
-    ))
+    greeting = start_greeting(session, bilingual=bilingual, description=entry.description)
     language_prompt = asyncio.create_task(ask_language_if_silent(greeting)) if bilingual else None
 
     async def cancel_language_prompt():

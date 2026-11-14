@@ -385,7 +385,8 @@ Provider secrets stay on the backend.
 | --- | --- | --- |
 | `GNANI_API_KEY` | Unset | Gnani recognition and speech synthesis |
 | `GROQ_API_KEY` | Unset | Groq reply generation |
-| `GROQ_MODEL` | `openai/gpt-oss-20b` | Groq chat model |
+| `GROQ_MODEL` | `openai/gpt-oss-20b` | Live conversation model |
+| `GROQ_SUMMARY_MODEL` | `qwen/qwen3.8-27b` | Separate phonebook summary model |
 | `LIVEKIT_URL` | `ws://127.0.0.1:7880` | Room server used by API connection details and worker |
 | `LIVEKIT_API_KEY` | `devkey` | Local development token-signing/worker identity |
 | `LIVEKIT_API_SECRET` | `secret` | Local development signing secret |

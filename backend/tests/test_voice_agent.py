@@ -11,6 +11,19 @@ from voiceagent import worker as voice_agent
 
 
 class WorkerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_fixed_and_personalized_greetings(self):
+        session = Mock()
+        voice_agent.start_greeting(session, bilingual=True, description='')
+        session.say.assert_called_once()
+        session.generate_reply.assert_not_called()
+        session.reset_mock()
+        voice_agent.start_greeting(session, bilingual=True, description='A rice farmer')
+        session.generate_reply.assert_called_once()
+        session.say.assert_not_called()
+        session.reset_mock()
+        voice_agent.start_greeting(session, bilingual=False, description='')
+        session.generate_reply.assert_called_once()
+
     async def test_turn_context_requests_caller_language(self):
         agent = voice_agent.FarmingAgent(instructions="Help farmers")
         context = ChatContext()
@@ -71,6 +84,14 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
              patch.object(voice_agent.silero.VAD, 'load', return_value=Mock()):
             await voice_agent.conversation(ctx)
             store.get.assert_called_once_with('demo')
+            usage = voice_agent.metrics.LLMMetrics.model_construct(
+                prompt_tokens=100, completion_tokens=20, total_tokens=120,
+                prompt_cached_tokens=10, reasoning_tokens=3)
+            with self.assertLogs('voiceagent.worker', level='INFO') as captured:
+                handlers['metrics_collected'](Mock(metrics=usage))
+            self.assertIn('task=voice', captured.output[0])
+            self.assertIn('total_tokens=120', captured.output[0])
+            self.assertNotIn('I teach science', captured.output[0])
             self.assertNotIn('conversation_item_added', handlers)
             handlers['close'](Mock())
             ctx.shutdown.assert_called_once_with(reason='conversation ended')

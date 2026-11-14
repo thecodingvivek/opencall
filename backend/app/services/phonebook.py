@@ -65,7 +65,7 @@ async def generate_description(description: str, statements: str) -> str:
     if not settings.groq_api_key:
         raise RuntimeError("GROQ_API_KEY is not configured")
     payload = {
-        "model": settings.groq_model, "max_completion_tokens": 1600,
+        "model": settings.groq_summary_model, "max_completion_tokens": 512,
         "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": (
             'Return JSON with exactly one field: {"description": "..."}. '
@@ -80,13 +80,23 @@ async def generate_description(description: str, statements: str) -> str:
             "existing_description": description, "user_statements": statements,
         }, ensure_ascii=False)}],
     }
-    if settings.groq_model.startswith("openai/gpt-oss"):
+    if settings.groq_summary_model.startswith("openai/gpt-oss"):
         payload["reasoning_effort"] = "low"
+    elif settings.groq_summary_model == "qwen/qwen3.8-27b":
+        payload["reasoning_effort"] = "none"
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=12)) as client:
         async with client.post("https://api.groq.com/openai/v1/chat/completions", json=payload,
             headers={"Authorization": f"Bearer {settings.groq_api_key.get_secret_value()}"}) as response:
             response.raise_for_status()
             result = await response.json()
+    usage = result.get("usage") or {}
+    prompt_details = usage.get("prompt_tokens_details") or {}
+    completion_details = usage.get("completion_tokens_details") or {}
+    logging.getLogger(__name__).info(
+        "Groq usage task=phonebook_summary model=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s cached_tokens=%s reasoning_tokens=%s",
+        settings.groq_summary_model, usage.get("prompt_tokens"), usage.get("completion_tokens"),
+        usage.get("total_tokens"), prompt_details.get("cached_tokens"), completion_details.get("reasoning_tokens"),
+    )
     choice = result["choices"][0]
     if choice.get("finish_reason") != "stop":
         raise ValueError("Incomplete description response")
@@ -98,8 +108,8 @@ async def update_description_after_session(store: PhonebookStore, username: str,
     if not text:
         return
     # Keep introductions and recent corrections within a bounded model request.
-    if len(text) > 24000:
-        text = text[:12000] + "\n[...]\n" + text[-12000:]
+    if len(text) > 12000:
+        text = text[:6000] + "\n[...]\n" + text[-6000:]
     try:
         entry = await asyncio.to_thread(store.get, username)
         description = await generate_description(entry.description, text)

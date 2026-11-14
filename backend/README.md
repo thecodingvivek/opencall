@@ -346,3 +346,20 @@ must be verified with a real conversation.
 
 The original 27-test migration validation above applies to the recording endpoints;
 these newer checks cover the room-based conversation implementation.
+
+### Groq model usage
+
+The live conversation uses `GROQ_MODEL` (default `openai/gpt-oss-20b`).
+Phonebook updates use the independent `GROQ_SUMMARY_MODEL` (default
+`qwen/qwen3.8-27b`, with reasoning disabled). Set the summary model to a model
+available to the same Groq account. There is no automatic fallback to the voice
+model: if summarization fails or is truncated, the existing description is kept.
+Phonebook summary requests preserve the first and last 6,000 characters of long
+sessions and cap output at 512 tokens; details in the middle can be omitted.
+
+Worker logs report provider-reported prompt, completion, total, cached and
+reasoning token counts separately for `task=voice` and `task=phonebook_summary`.
+These logs contain no transcript text. Missing or zero usage fields depend on the
+provider. Model quotas and cached-token treatment depend on the Groq account.
+A bilingual call without a saved description uses a fixed Hindi greeting; calls
+with a saved description retain a personalized, model-generated greeting.

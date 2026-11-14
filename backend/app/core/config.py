@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     gnani_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
+    groq_summary_model: str = "qwen/qwen3.8-27b"
     livekit_url: str = "ws://127.0.0.1:7880"
     livekit_api_key: str = "devkey"
     livekit_api_secret: SecretStr = SecretStr("secret")

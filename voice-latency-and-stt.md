@@ -74,9 +74,8 @@ connections.
 
 `openai.LLM` only sets a reasoning default for OpenAI's own GPT-5 models
 (`_supports_reasoning_effort` in `livekit/plugins/openai/models.py`), so
-`openai/gpt-oss-20b` runs at Groq's default of `medium`. The phonebook summary
-call in `backend/app/services/phonebook.py` already sends `"low"`; the live
-voice path does not.
+`openai/gpt-oss-20b` runs at Groq's default of `medium`. The live voice path does not set this option. The phonebook summary now uses a
+separate configurable model.
 
 ```python
 openai.LLM(..., model=settings.groq_model, reasoning_effort="low")
@@ -181,12 +180,11 @@ Smaller tool items:
 - Have the agent say a short filler line ("Let me check the forecast") before
   slow tools, so the caller hears something while the tool runs.
 
-### 2.6 Make the greeting cheaper
+### 2.6 Make the greeting cheaper (implemented for calls without a description)
 
-The greeting goes through `session.generate_reply`, which costs a full LLM round
-trip plus TTS before the caller hears anything. For the bilingual case the
-greeting is predictable; use `session.say("<fixed Hindi greeting>")` and keep
-`generate_reply` only when the phonebook description should shape the greeting.
+Bilingual calls without a saved phonebook description use a fixed Hindi greeting
+through `session.say`, avoiding an LLM request. Calls with a description and
+non-bilingual calls continue to use `session.generate_reply`. TTS is still used.
 
 ### 2.7 Preemptive TTS
 

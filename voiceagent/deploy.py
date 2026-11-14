@@ -24,7 +24,7 @@ def main():
             raise SystemExit(f"Missing {key} in voiceagent/.env")
         env[key] = cloud[key]
     secrets = {key: cloud.get(key) or backend.get(key) for key in (
-        "GNANI_API_KEY", "GROQ_API_KEY", "GROQ_MODEL", "CONVERSATION_MAX_SECONDS")}
+        "GNANI_API_KEY", "GROQ_API_KEY", "GROQ_MODEL", "GROQ_SUMMARY_MODEL", "CONVERSATION_MAX_SECONDS")}
     secrets["DATABASE_URL"] = cloud.get("DATABASE_URL") or backend.get("DATABASE_URL") or backend.get("poolurl") or backend.get("URL")
     secrets["DATABASE_SSL_ROOT_CERT"] = "/etc/secrets/prod-ca-2021.crt"
     for key in ("GNANI_API_KEY", "GROQ_API_KEY", "DATABASE_URL"):
