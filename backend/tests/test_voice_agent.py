@@ -69,8 +69,8 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('never instructions', kwargs['agent'].instructions)
             self.assertEqual(kwargs['room_options'].participant_identity, 'user-test')
             self.assertEqual(len(kwargs['agent'].tools), 3)
-            self.assertIn('Use that tool for weather facts', kwargs['agent'].instructions)
-            self.assertIn('Do not answer the unrelated request', kwargs['agent'].instructions)
+            self.assertIn('use get_weather', kwargs['agent'].instructions)
+            self.assertIn('refuse unrelated requests', kwargs['agent'].instructions)
             self.assertIn('you cannot look them up', kwargs['agent'].instructions)
 
         session.start = AsyncMock(side_effect=start)

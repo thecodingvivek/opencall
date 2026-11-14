@@ -208,16 +208,15 @@ async def weather_data(location: str, start: str = "now", end: str | None = None
 
 @function_tool
 async def get_weather(location: str, start: str = "now", end: str | None = None) -> str:
-    """Check weather for a city, e.g. Hyderabad, India. Dates/times are local to the city.
+    """Get weather for a city; all dates and times are local to that city.
 
     Args:
-        location: City, optionally followed by region/country.
+        location: City, optionally with region or country.
         start: now, today, tomorrow, yesterday, ISO date/time, or relative +3h/+7d/-7d.
-        end: Optional inclusive end in the same format. Omit for one day/hour or current weather.
+        end: Optional inclusive end in the same format. Omit for current weather or one day/hour.
 
-    Time requests return hourly estimates; date-only requests return daily data.
-    History starts in 1940; forecasts end 15 days after today. Max 366 days per call.
-    Longer periods return compact summaries. Ask for a city if missing; never guess unavailable weather.
+    Time requests use hourly estimates; dates use daily data. History starts in 1940;
+    forecasts reach 15 days ahead; maximum range is 366 days. Long ranges are summarized.
     """
     await send_step("weather_started", {"location": location})
     try:

@@ -14,12 +14,12 @@ from app.services.tasks import save_task
 
 @function_tool
 async def update_farming_task(task_id: str, title: str, status: Literal["requested"]) -> str:
-    """Add a requested farming-related phone call to the jobs panel; no call is made yet.
+    """Save an explicitly requested farming-related call; no call is made or scheduled.
 
     Args:
-        task_id: Short stable ID for this request, reused for later updates (letters, digits, hyphens).
-        title: Brief requested call, such as "Call fertilizer shop to check stock".
-        status: Always requested: outbound calling is not available yet.
+        task_id: Stable request ID using letters, digits, or hyphens; reuse for updates.
+        title: Brief call request, e.g. "Call fertilizer shop to check stock".
+        status: Always requested.
     """
     task_id = task_id.strip()
     title = " ".join(title.split())

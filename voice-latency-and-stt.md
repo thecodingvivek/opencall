@@ -310,12 +310,13 @@ judged by impression. Keep recordings out of Git and out of the build context.
 
 ## 4. Prompt and context hygiene
 
-- The `FARMING_INSTRUCTIONS` prompt (about 3,400 characters, roughly 750 tokens) is stable at the start of each
-  request, which suits Groq's prefix caching for gpt-oss. Keep dynamic content
-  (UTC time, caller profile) at the end, as it is now.
-- `on_user_turn_completed` adds the same language instruction as a system
-  message on every turn. Once per-turn `detected_language_code` is available
-  (3.3), replace it with one short line naming the detected language.
+- The shortened `FARMING_INSTRUCTIONS` prompt (about 1,800 characters) is stable at the start of each
+  request, which suits Groq's prefix caching for gpt-oss. A synthetic `Hello`
+  request with the same three tool schemas measured 1,079 prompt tokens before
+  shortening and 709 after; actual call usage varies with context and caching.
+  Keep dynamic content (UTC time, caller profile) at the end, as it is now.
+- `on_user_turn_completed` adds a short language instruction on each turn,
+  including the selected language when available and respecting explicit requests.
 - `architecture.md` still describes TinyDB and Phoenix. Update it when these
   changes land so the docs match the code.
 

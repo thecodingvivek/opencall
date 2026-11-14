@@ -31,12 +31,12 @@ def _query_crop_knowledge(query: str, crop: str | None, region: str | None):
 
 @function_tool
 async def search_crop_knowledge(query: str, crop: str | None = None, region: str | None = None) -> str:
-    """Find sourced crop disease, pest, and nutrient guidance using text search.
+    """Search sourced crop, pest, disease and fertilizer guidance by text.
 
     Args:
-        query: Crop problem, observed symptoms, or farming question in the farmer's own words.
-        crop: Optional crop name, such as tomato, chilli, rice, or wheat.
-        region: Optional Indian state or region to prefer local guidance.
+        query: Crop problem, symptoms, or farming question.
+        crop: Optional crop name, e.g. tomato or rice.
+        region: Optional Indian state or region.
     """
     query = " ".join(query.split())
     crop = " ".join(crop.split()) if crop else None
