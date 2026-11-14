@@ -25,6 +25,17 @@
     .voice-choice { display: flex; align-items: center; gap: 16px; padding: 8px 12px 8px 16px; border: 1px solid #e2e2e2; border-radius: 9999px; background: white; color: #343433; font-size: 14px; line-height: 20px; }
     .voice-choice svg { width: 16px; height: 16px; color: #777; }
     .orb { display: block; width: 160px; height: 160px; }
+    .phone { position: absolute; bottom: 0; left: 50%; z-index: 1; width: min(70vw, 320px); transform: translate(-50%, 100%); transition: transform .8s cubic-bezier(.22, 1, .36, 1); pointer-events: none; }
+    .phone.visible { transform: translate(-50%, 30%); }
+    .phone img { display: block; width: 100%; height: auto; filter: drop-shadow(0 8px 14px rgba(0,0,0,.18)); }
+    .phone-screen { position: absolute; left: 34.38%; top: 15.33%; width: 31.37%; height: 29.30%; border-radius: 4%; background: #17181a; text-align: center; font-family: Arial, sans-serif; }
+    .phone-screen p { margin: 0; position: absolute; width: 100%; }
+    .phone-status { top: 21%; color: #b8bdba; font-size: clamp(6px, .65vw, 10px); }
+    .phone-time { top: 37%; color: #f4f6f4; font-size: clamp(14px, 1.7vw, 27px); }
+    .phone-name { top: 50%; color: #8e9690; font-size: clamp(6px, .65vw, 11px); }
+    .call-action { border: 0; cursor: pointer; font-family: inherit; }
+    .call-action.active { background: #dc2626; }
+    @media (prefers-reduced-motion: reduce) { .phone { transition: none; } }
     .flow { position: absolute; top: 50%; width: min(12vw, 120px); height: 160px; transform: translateY(-50%); }
     .flow.left { right: 100%; } .flow.right { left: 100%; }
     .call-action { position: absolute; bottom: 40px; left: 50%; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 10px; height: 52px; padding: 0 30px; transform: translateX(-50%); border-radius: 9999px; background: #16a34a; box-shadow: 0 1px 2px #12121229; color: #fff; font-size: 13px; font-weight: 600; letter-spacing: -.009em; white-space: nowrap; }
@@ -41,16 +52,315 @@
 <body>
   <main>
     <div class="footer" aria-hidden="true"><img src="footer-figma.svg" alt=""></div>
+    <div class="phone" aria-hidden="true"><img src="test.svg" alt=""><div class="phone-screen"><p class="phone-status">CALL IN PROGRESS</p><p class="phone-time">00:00</p><p class="phone-name">OpenCall agent</p></div></div>
     <nav aria-label="Main navigation"><span class="brand">Opencall</span><div class="nav-actions"><span class="pill">Back</span><span class="pill">Log out</span></div></nav>
     <section class="phonebook" aria-label="Phonebook"><div class="phonebook-inner"><p class="heading tool">Maps tool</p><p class="heading tool">Weather tool</p><h2 class="heading">Phonebook</h2><p class="muted">No phone number provided<br>No description yet.</p></div></section>
     <section class="call" aria-label="Call">
       <div class="voice">Voice<span class="voice-choice">Shivani<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></div>
       <svg class="flow left" viewBox="0 0 120 160" preserveAspectRatio="none" fill="none" stroke="#d4d4d4" aria-hidden="true"><path d="M0 10 C60 10 60 80 120 80 M0 35 C60 35 60 80 120 80 M0 60 C60 60 60 80 120 80 M0 100 C60 100 60 80 120 80 M0 125 C60 125 60 80 120 80 M0 150 C60 150 60 80 120 80" vector-effect="non-scaling-stroke"/></svg>
-      <svg class="orb" viewBox="0 0 160 160" role="img" aria-label="Glass sphere containing colorful liquid"><defs><radialGradient id="glass" cx="34%" cy="22%" r="78%"><stop stop-color="#fff"/><stop offset=".22" stop-color="#e9fff7"/><stop offset=".55" stop-color="#8ce7c6"/><stop offset=".8" stop-color="#31aab0"/><stop offset="1" stop-color="#dcecf0"/></radialGradient><linearGradient id="liquid" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#d9efa0"/><stop offset=".35" stop-color="#41cfb4"/><stop offset="1" stop-color="#1744a0"/></linearGradient><clipPath id="sphere"><circle cx="80" cy="80" r="73"/></clipPath></defs><circle cx="80" cy="80" r="75" fill="url(#glass)" stroke="#d9e8e9" stroke-width="2"/><g clip-path="url(#sphere)"><path d="M7 62 Q44 72 80 61 T153 62 V153 H7Z" fill="url(#liquid)" opacity=".8"/><ellipse cx="80" cy="62" rx="71" ry="10" fill="#b7edb7" opacity=".38"/><ellipse cx="53" cy="31" rx="31" ry="12" fill="#fff" opacity=".3"/><ellipse cx="80" cy="80" rx="70" ry="71" fill="none" stroke="#fff" stroke-width="5" opacity=".5"/></g></svg>
+      <canvas class="orb" role="img" aria-label="A glass sphere containing animated liquid"></canvas>
       <svg class="flow right" viewBox="0 0 120 160" preserveAspectRatio="none" fill="none" stroke="#d4d4d4" aria-hidden="true"><path d="M0 80 C60 80 60 10 120 10 M0 80 C60 80 60 35 120 35 M0 80 C60 80 60 60 120 60 M0 80 C60 80 60 100 120 100 M0 80 C60 80 60 125 120 125 M0 80 C60 80 60 150 120 150" vector-effect="non-scaling-stroke"/></svg>
-      <span class="call-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.35 1.91.68 2.82a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.86.56 2.82.68A2 2 0 0 1 22 16.92z"/></svg>Call agent</span>
+      <button type="button" class="call-action" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.96.35 1.91.68 2.82a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.86.56 2.82.68A2 2 0 0 1 22 16.92z"/></svg><span class="call-label">Call agent</span></button>
     </section>
     <section class="conversation" aria-label="Conversation"><div class="conversation-content"><h2 class="heading">Agent</h2><p class="muted">Your conversation will appear here.</p></div><div class="jobs-wrap"><div class="jobs"><p class="heading">Subagents and jobs</p><p class="muted">No current jobs</p><svg class="cursor" viewBox="0 0 69 84" aria-hidden="true"><defs><radialGradient id="cursor-orb" cx="30%" cy="25%" r="75%"><stop stop-color="#fce6b5"/><stop offset=".5" stop-color="#a2cfb4"/><stop offset="1" stop-color="#738dc2"/></radialGradient></defs><circle cx="26" cy="38" r="12" fill="url(#cursor-orb)"/><path d="M5 5 Q4 3 7 5 L43 27 Q47 30 42 31 L25 34 Q23 34 22 36 L13 49 Q10 53 9 48 Z" transform="scale(.75)" fill="#171717" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></section>
   </main>
+
+  <script>
+    (() => {
+      const button = document.querySelector('.call-action');
+      const phone = document.querySelector('.phone');
+      const clock = document.querySelector('.phone-time');
+      let started = 0, timer;
+      button.addEventListener('click', () => {
+        const active = button.getAttribute('aria-pressed') !== 'true';
+        button.setAttribute('aria-pressed', String(active));
+        button.classList.toggle('active', active);
+        phone.classList.toggle('visible', active);
+        button.querySelector('.call-label').textContent = active ? 'End call' : 'Call agent';
+        clearInterval(timer);
+        clock.textContent = '00:00';
+        if (active) {
+          started = Date.now();
+          timer = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - started) / 1000);
+            clock.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+          }, 1000);
+        }
+      });
+    })();
+    (() => {
+      const canvas = document.querySelector('.orb');
+      const gl = canvas.getContext('webgl', { alpha: true, antialias: false, depth: false });
+      if (!gl) { console.error('WebGL is unavailable'); return; }
+      const vertexSource = `
+        attribute vec2 position;
+        void main() { gl_Position = vec4(position, 0.0, 1.0); }
+      `;
+      const fragmentSource = `
+        precision highp float;
+        uniform vec2 resolution;
+        uniform vec2 pointer;
+        uniform float time;
+        uniform vec3 bands;
+        uniform vec3 gradientTop;
+        uniform vec3 gradientBottom;
+        uniform vec3 gradientAccent;
+        const float radius = 1.0;
+        const float ior = 1.46;
+        const float innerRadius = 0.95;
+        // Equilibrium under inward radial gravity: a concentric liquid sphere.
+        // Rest volume: (liquidRadius / innerRadius)^3 = 0.60.
+        const float liquidRadius = 0.8434326653 * innerRadius;
+        const float liquidIor = 1.333;
+
+        float liquidField(vec3 point) {
+          float distance = length(point);
+          vec3 n = point / max(distance, 0.0001);
+          // Odd spherical waves have zero mean. Modulating radius cubed
+          // preserves the 60% volume as the surface moves around the center.
+          float wave = bands.x * sin(n.y * 7.0) * cos(time * 2.4)
+            + bands.y * sin(dot(n, normalize(vec3(1.0, 0.4, 0.2))) * 13.0) * sin(time * 3.1)
+            + bands.z * sin(dot(n, normalize(vec3(0.2, 0.4, 1.0))) * 21.0) * cos(time * 4.3);
+          float r = liquidRadius * pow(1.0 + 0.105 * wave, 1.0 / 3.0);
+          return distance - r;
+        }
+
+        vec3 liquidNormal(vec3 point) {
+          vec2 e = vec2(0.001, 0.0);
+          return normalize(vec3(
+            liquidField(point + e.xyy) - liquidField(point - e.xyy),
+            liquidField(point + e.yxy) - liquidField(point - e.yxy),
+            liquidField(point + e.yyx) - liquidField(point - e.yyx)));
+        }
+
+        float liquidIntersection(vec3 origin, vec3 direction, float side) {
+          float travel = 0.003;
+          for (int step = 0; step < 80; step++) {
+            float distance = liquidField(origin + direction * travel) * side;
+            if (distance < 0.0006) return travel;
+            // Conservative steps accommodate the high-frequency surface waves.
+            travel += max(distance * 0.38, 0.0003);
+            if (travel > 2.0) break;
+          }
+          return -1.0;
+        }
+
+        float farIntersection(vec3 origin, vec3 direction, float r) {
+          float b = dot(origin, direction);
+          return -b + sqrt(max(0.0, b * b - dot(origin, origin) + r * r));
+        }
+
+        // Original procedural noise: no texture downloads or shader SDK.
+        float hash3(vec3 p) {
+          p = fract(p * 0.1031);
+          p += dot(p, p.yzx + 33.33);
+          return fract((p.x + p.y) * p.z);
+        }
+
+        float noise3(vec3 p) {
+          vec3 cell = floor(p);
+          vec3 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(
+            mix(mix(hash3(cell), hash3(cell + vec3(1,0,0)), f.x),
+                mix(hash3(cell + vec3(0,1,0)), hash3(cell + vec3(1,1,0)), f.x), f.y),
+            mix(mix(hash3(cell + vec3(0,0,1)), hash3(cell + vec3(1,0,1)), f.x),
+                mix(hash3(cell + vec3(0,1,1)), hash3(cell + vec3(1,1,1)), f.x), f.y), f.z);
+        }
+
+        float cloud(vec3 p) {
+          return noise3(p) * 0.57 + noise3(p * 2.03 + 7.1) * 0.29
+            + noise3(p * 4.07 + 19.3) * 0.14;
+        }
+
+        vec3 absorbLiquid(vec3 color, float distance, vec3 surface) {
+          // Slow domain warping creates broad, soft pools of three colors.
+          vec3 p = surface * 1.8 + vec3(time * 0.075, -time * 0.045, time * 0.035);
+          vec3 warp = vec3(cloud(p + 4.7), cloud(p + 12.9), cloud(p - 8.3));
+          float field = cloud(p + (warp - 0.5) * 2.6);
+          float blend = smoothstep(0.22, 0.76, field + surface.y * 0.16);
+          vec3 tint = mix(gradientBottom, gradientTop, blend);
+          float accent = smoothstep(0.47, 0.76, cloud(p * 0.8 + warp * 1.7 + 22.0) + surface.x * 0.14);
+          tint = mix(tint, gradientAccent, accent * 0.85);
+          // Fine, stable film grain is restricted to the liquid volume.
+          float grain = hash3(vec3(gl_FragCoord.xy, 17.0)) - 0.5;
+          tint = clamp(tint + grain * 0.12, 0.02, 1.0);
+          vec3 absorption = -log(max(tint, vec3(0.025))) * 1.8;
+          vec3 attenuation = exp(-absorption * distance);
+          return color * attenuation + tint * (1.0 - attenuation) * 0.16;
+        }
+
+        float sphere(vec3 origin, vec3 direction) {
+          float b = dot(origin, direction);
+          float c = dot(origin, origin) - radius * radius;
+          float h = b * b - c;
+          if (h < 0.0) return -1.0;
+          return -b - sqrt(h);
+        }
+
+        vec3 environment(vec3 origin, vec3 direction) {
+          vec3 color = mix(vec3(0.65, 0.73, 0.72), vec3(0.96, 0.96, 0.92),
+            smoothstep(-0.6, 0.8, direction.y));
+          // Large studio softboxes are reflected by the curved surface.
+          float light = pow(max(dot(direction, normalize(vec3(-0.65, 0.9, 1.2))), 0.0), 50.0);
+          float rim = pow(max(dot(direction, normalize(vec3(1.0, 0.3, -0.6))), 0.0), 28.0);
+          color += vec3(1.8) * light + vec3(0.55, 0.67, 0.7) * rim;
+          if (direction.y < -0.0001) {
+            float t = (-1.3 - origin.y) / direction.y;
+            if (t > 0.0) {
+              vec3 point = origin + t * direction;
+              float shade = exp(-dot(point.xz, point.xz) * 1.15);
+              vec3 floorColor = mix(vec3(0.83, 0.86, 0.83), vec3(0.69, 0.77, 0.75),
+                smoothstep(-4.0, 6.0, point.x));
+              floorColor *= 1.0 - 0.22 * shade;
+              float caustic = exp(-dot(point.xz - vec2(0.35, -0.25), point.xz - vec2(0.35, -0.25)) * 7.0);
+              floorColor += vec3(0.10, 0.12, 0.11) * caustic;
+              color = mix(floorColor, color, 1.0 - exp(-t * 0.025));
+            }
+          }
+          return color;
+        }
+
+        vec4 trace(vec2 pixel) {
+          // Fit the sphere closely inside its own square canvas.
+          vec2 uv = (pixel * 2.0 - resolution) / min(resolution.x, resolution.y) * 0.35;
+          vec3 camera = vec3(pointer.x * 0.32, 0.72 + pointer.y * 0.2, 4.8);
+          vec3 forward = normalize(-camera);
+          vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+          vec3 up = cross(right, forward);
+          vec3 direction = normalize(forward * 1.6 + uv.x * right + uv.y * up);
+          float distance = sphere(camera, direction);
+          if (distance < 0.0) return vec4(0.0);
+
+          vec3 entry = camera + direction * distance;
+          vec3 normal = normalize(entry);
+          vec3 reflection = environment(entry, reflect(direction, normal));
+          vec3 glassRay = refract(direction, normal, 1.0 / ior);
+          float b = dot(entry, glassRay);
+          float discriminant = b * b - dot(entry, entry) + innerRadius * innerRadius;
+          float f0 = pow((1.0 - ior) / (1.0 + ior), 2.0);
+          float fresnel = f0 + (1.0 - f0) * pow(1.0 - max(dot(-direction, normal), 0.0), 5.0);
+          float glassAlpha = 0.025 + fresnel * 0.38;
+          if (discriminant <= 0.0) return vec4(reflection, glassAlpha);
+
+          // Enter the hollow cavity through a thin glass wall.
+          vec3 origin = entry + glassRay * (-b - sqrt(discriminant));
+          vec3 ray = refract(glassRay, normalize(origin), ior);
+          if (dot(ray, ray) < 0.01) return vec4(reflection, glassAlpha);
+          float liquidDistance = 0.0;
+          vec3 liquidSurface = vec3(0.0);
+          float surfaceReflection = 0.0;
+          vec3 surfaceColor = vec3(0.0);
+
+          // Ray march the displaced liquid surface, including its silhouette.
+          float surfaceDistance = liquidIntersection(origin, ray, 1.0);
+          if (surfaceDistance > 0.0) {
+              vec3 surface = origin + ray * surfaceDistance;
+              liquidSurface = surface;
+              vec3 surfaceNormal = liquidNormal(surface);
+              float sf0 = pow((1.0 - liquidIor) / (1.0 + liquidIor), 2.0);
+              surfaceReflection = sf0 + (1.0 - sf0)
+                * pow(1.0 - max(dot(-ray, surfaceNormal), 0.0), 5.0);
+              surfaceColor = environment(surface, reflect(ray, surfaceNormal));
+
+              // Bend the ray into the liquid and back out through its far side.
+              vec3 liquidRay = refract(ray, surfaceNormal, 1.0 / liquidIor);
+              liquidDistance = liquidIntersection(surface, liquidRay, -1.0);
+              if (liquidDistance < 0.0) liquidDistance = farIntersection(surface, liquidRay, liquidRadius);
+              vec3 liquidExit = surface + liquidRay * liquidDistance;
+              vec3 liquidExitNormal = liquidNormal(liquidExit);
+              ray = refract(liquidRay, -liquidExitNormal, liquidIor);
+              // Avoid a zero ray when a steep ripple produces total reflection.
+              if (dot(ray, ray) < 0.01) ray = refract(liquidRay, -normalize(liquidExit), liquidIor);
+              if (dot(ray, ray) < 0.01) ray = liquidRay;
+              float exitFresnel = sf0 + (1.0 - sf0)
+                * pow(1.0 - max(dot(liquidRay, liquidExitNormal), 0.0), 5.0);
+              surfaceReflection = 1.0 - (1.0 - surfaceReflection) * (1.0 - exitFresnel);
+              origin = liquidExit;
+          }
+          float wallDistance = farIntersection(origin, ray, innerRadius);
+          vec3 innerExit = origin + ray * wallDistance;
+          vec3 wallRay = refract(ray, -normalize(innerExit), 1.0 / ior);
+          vec3 exitPoint = innerExit + wallRay * farIntersection(innerExit, wallRay, radius);
+          vec3 outgoing = refract(wallRay, -normalize(exitPoint), ior);
+          if (dot(outgoing, outgoing) < 0.01) outgoing = reflect(wallRay, -normalize(exitPoint));
+          vec3 transmission = environment(exitPoint, outgoing);
+          transmission = absorbLiquid(transmission, liquidDistance, liquidSurface);
+          transmission = mix(transmission, surfaceColor, surfaceReflection);
+          // Empty glass lets the actual page background show through.
+          return vec4(mix(transmission, reflection, fresnel),
+            liquidDistance > 0.0 ? 1.0 : glassAlpha);
+        }
+
+        vec4 samplePixel(vec2 pixel) {
+          vec4 sampleColor = trace(pixel);
+          vec3 mapped = sampleColor.rgb / (sampleColor.rgb + vec3(0.28));
+          // The WebGL canvas composites premultiplied color onto the page.
+          return vec4(pow(mapped, vec3(1.0 / 2.2)) * sampleColor.a, sampleColor.a);
+        }
+
+        void main() {
+          gl_FragColor = 0.5 * (samplePixel(gl_FragCoord.xy + vec2(-0.25))
+            + samplePixel(gl_FragCoord.xy + vec2(0.25)));
+        }
+      `;
+      function compile(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+        return shader;
+      }
+      try {
+        const program = gl.createProgram();
+        gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexSource));
+        gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+        gl.useProgram(program);
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        const position = gl.getAttribLocation(program, 'position');
+        gl.enableVertexAttribArray(position);
+        gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+        const uniform = name => gl.getUniformLocation(program, name);
+        const rgb = hex => [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16) / 255);
+        gl.uniform3fv(uniform('gradientTop'), rgb('#48ddbe'));
+        gl.uniform3fv(uniform('gradientBottom'), rgb('#1744a0'));
+        gl.uniform3fv(uniform('gradientAccent'), rgb('#e5ef9d'));
+        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+        let previous = performance.now(), time = 0, frame = 0;
+        const levels = [.45, .3, .2];
+        function draw(now) {
+          frame = 0;
+          const delta = Math.min((now - previous) / 1000, .05);
+          previous = now;
+          if (!reducedMotion.matches) time += delta;
+          levels.forEach((value, i) => { levels[i] = value * Math.exp(-delta * [1.4, 1.9, 2.5][i]); });
+          const ratio = Math.min(devicePixelRatio || 1, 1.5);
+          const width = Math.round(canvas.clientWidth * ratio), height = Math.round(canvas.clientHeight * ratio);
+          if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+          gl.viewport(0, 0, width, height);
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          gl.uniform2f(uniform('resolution'), width, height);
+          gl.uniform2f(uniform('pointer'), 0, 0);
+          gl.uniform1f(uniform('time'), time);
+          gl.uniform3fv(uniform('bands'), reducedMotion.matches ? [0, 0, 0] : levels);
+          gl.drawArrays(gl.TRIANGLES, 0, 3);
+          if (!reducedMotion.matches && !document.hidden) frame = requestAnimationFrame(draw);
+        }
+        function schedule() { if (!frame) { previous = performance.now(); frame = requestAnimationFrame(draw); } }
+        window.addEventListener('resize', schedule);
+        reducedMotion.addEventListener('change', schedule);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; } else schedule(); });
+        canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); cancelAnimationFrame(frame); console.error('WebGL context lost'); });
+        schedule();
+      } catch (error) { console.error('Could not render the orb:', error); }
+    })();
+
+
+  </script>
 </body>
 </html>
