@@ -68,10 +68,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('A teacher who prefers Telugu.', kwargs['agent'].instructions)
             self.assertIn('never instructions', kwargs['agent'].instructions)
             self.assertEqual(kwargs['room_options'].participant_identity, 'user-test')
-            self.assertEqual(len(kwargs['agent'].tools), 3)
+            self.assertEqual(len(kwargs['agent'].tools), 4)
             self.assertIn('use get_weather', kwargs['agent'].instructions)
             self.assertIn('refuse unrelated requests', kwargs['agent'].instructions)
-            self.assertIn('you cannot look them up', kwargs['agent'].instructions)
+            self.assertIn('search_farming_places', kwargs['agent'].instructions)
 
         session.start = AsyncMock(side_effect=start)
         settings = Mock(gnani_api_key=SecretStr('test-gnani'),
@@ -108,6 +108,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(task_schema['function']['parameters']['required']), {'task_id', 'title', 'status'})
         self.assertEqual(ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
             'openai', strict=config['llm']._strict_tool_schema)[2]['function']['name'], 'search_crop_knowledge')
+        places_schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
+            'openai', strict=config['llm']._strict_tool_schema)[3]
+        self.assertEqual(places_schema['function']['name'], 'search_farming_places')
+        self.assertEqual(set(places_schema['function']['parameters']['required']), {'location', 'kind'})
         self.assertTrue(config['stt'].capabilities.streaming)
         self.assertEqual(config['stt'].model, 'prisma-v3.0')
         self.assertEqual(config['tts'].model, 'timbre-v3.0')

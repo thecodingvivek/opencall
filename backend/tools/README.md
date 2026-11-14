@@ -88,3 +88,14 @@ database tables or save weather results in the phonebook.
 Provider references: [forecast API](https://open-meteo.com/en/docs),
 [historical API](https://open-meteo.com/en/docs/historical-weather-api),
 [geocoding API](https://open-meteo.com/en/docs/geocoding-api).
+
+## Farming places
+
+`search_farming_places` uses Geoapify to geocode the supplied location and search
+within 10 km for farm-supply shops, garden shops, or government agriculture
+offices. Set `GEOAPIFY_API_KEY` in `backend/.env` and restart the local worker;
+for LiveKit Cloud, set the same worker secret. The deployment helper includes
+it when present. The tool returns at most five named listings, including phone
+numbers only when supplied. Categories and listings may be incomplete or stale:
+a shop listing does not verify a product, stock, or the user's exact location.
+An empty result does not prove no shop exists.

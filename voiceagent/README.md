@@ -22,7 +22,7 @@ Current deployment: `CA_f2xynEedv2Bv`, region `ap-south` (Mumbai), dispatch name
 
 The Dockerfile runs Python 3.13 as an unprivileged user, downloads model files during build and launches `python -m voiceagent.worker start`.
 
-Supply worker secrets via LiveKit: `GNANI_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL`, and any model overrides. LiveKit injects its own `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`. Mount `backend/prod-ca-2021.crt` with LiveKit's secret-file mechanism and set `DATABASE_SSL_ROOT_CERT=/etc/secrets/prod-ca-2021.crt`. No Firebase service-account key is required by the worker; authentication remains in the API.
+Supply worker secrets via LiveKit: `GNANI_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL`, optional `GEOAPIFY_API_KEY` for nearby farming places, and any model overrides. LiveKit injects its own `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`. Mount `backend/prod-ca-2021.crt` with LiveKit's secret-file mechanism and set `DATABASE_SSL_ROOT_CERT=/etc/secrets/prod-ca-2021.crt`. No Firebase service-account key is required by the worker; authentication remains in the API.
 
 With cloud keys in ignored `voiceagent/.env`, deploy using `backend/.venv-voice/bin/python voiceagent/deploy.py --region REGION`. This stages a Python-only build context (avoiding detection of the frontend Node project), reads the provider/database values from the backend environment, uploads only the required values through a restricted temporary file, and mounts the certificate. The generated `livekit.toml` is copied back to the repository root. For subsequent deployments add `--update`. It does not copy Firebase credentials or change the API's LiveKit configuration.
 

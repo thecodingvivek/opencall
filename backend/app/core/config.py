@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     firebase_service_account_json: SecretStr | None = None
     gnani_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
+    geoapify_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
     groq_summary_model: str = "qwen/qwen3.8-27b"
     livekit_url: str = "ws://127.0.0.1:7880"
