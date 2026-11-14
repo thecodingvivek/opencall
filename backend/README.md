@@ -114,7 +114,7 @@ References: [Gnani LiveKit plugin](https://docs.gnani.ai/livekit/introduction),
 ## Speech-to-text API
 
 Send a multipart request to `POST /api/v1/speech/transcribe`. This produces text in the spoken language;
-it does not translate between languages. The backend keeps the API key private.
+it does not translate between languages. The backend keeps the API key private. Both speech POST endpoints require a signed-in `firebase_session` cookie and share a limit of 20 requests per user per minute per API process. Deployments with multiple processes or serverless replicas need a shared gateway or distributed limiter for a global limit.
 
 The request has two fields: `audio` (a mono, 16-bit PCM WAV file at 16 kHz) and
 `language_code` (defaults to `en-IN`). Supported language codes are `en-IN`,
@@ -124,6 +124,7 @@ overlong (over 60 seconds) recordings before calling Gnani.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/speech/transcribe \
+  --cookie "firebase_session=<session-cookie>" \
   -F "audio=@recording.wav;type=audio/wav" \
   -F "language_code=en-IN"
 ```
@@ -156,6 +157,7 @@ The transcript panel's **Listen** button posts JSON to `/api/v1/speech/synthesiz
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/speech/synthesize \
+  --cookie "firebase_session=<session-cookie>" \
   -H 'Content-Type: application/json' \
   -d '{"text":"Hello. Welcome to OpenCall.","language_code":"en-IN","voice":"Shivani","delivery":"excited"}' \
   --output speech.wav

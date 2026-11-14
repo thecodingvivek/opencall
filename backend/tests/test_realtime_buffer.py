@@ -43,6 +43,22 @@ class StartupBufferTests(unittest.IsolatedAsyncioTestCase):
         await hindi.aclose()
         await english.aclose()
 
+    async def test_script_selection_across_session_languages(self):
+        for session, turn, text, expected in [
+            ('te-IN', None, 'नमस्ते किसान', 'hi-IN'),
+            ('te-IN', None, 'Hello farmer', 'en-IN'),
+            ('en-IN', 'mr-IN', 'नमस्कार', 'mr-IN'),
+            ('te-IN', 'hi-IN', 'aapka khet', 'hi-IN'),
+            ('hi-IN', 'en-IN', 'వందనం', 'te-IN'),
+        ]:
+            with self.subTest(session=session, turn=turn, text=text):
+                provider = ConversationTTS(api_key='test', voice='Shivani', language=session)
+                provider.turn_language = turn
+                stream = provider.synthesize(text)
+                self.assertEqual(stream._language, expected)
+                await stream.aclose()
+                await provider.aclose()
+
     async def test_indic_script_selects_synthesis_language(self):
         provider = ConversationTTS(api_key="test", voice="Shivani", language="en-IN")
         for text, language in [("వందనం రైతు", "te-IN"), ("வணக்கம்", "ta-IN"), ("નમસ્તે", "gu-IN")]:

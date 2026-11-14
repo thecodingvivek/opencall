@@ -20,22 +20,29 @@ def supported_language(value):
 
 
 def requested_language(text):
-    # Only apply an explicit override when the caller asks to speak/reply in a
-    # named language; a passing mention of a language should not change TTS.
-    text = text.casefold()
-    request = re.search(r'\b(speak|reply|respond|answer|talk|say|bol|bolo|baat|mein|me|in)\b|बोल|बात|जवाब|उत्तर|में', text)
-    if not request:
+    """Recognize a request to change language, not mentions of places or crops."""
+    text = text.casefold().strip()
+    if not text:
         return None
-    matches = [code for code, names in LANGUAGES.items() if any(
-        re.search(r'(?<!\w)' + re.escape(name.casefold()) + r'(?!\w)', text) for name in names[1:]
-    )]
-    return matches[0] if len(matches) == 1 else None
+    # Require an imperative or polite request and a language next to the action.
+    lead = r"(?:^|[.!?।]\s*)(?:please\s+|(?:can|could|would) you\s+)?"
+    verb = r"(?:speak|reply|respond|answer|talk|say|bol|bolo|boliye)"
+    for code, names in LANGUAGES.items():
+        for name in names[1:]:
+            language = re.escape(name.casefold())
+            english_request = lead + verb + r"\s+(?:to me\s+)?(?:in\s+)?" + language + r"(?![\w])"
+            hindi_request = language + r"\s*(?:में|me|mein)\s*(?:बोल(?:ो|िए|ें)?|बात|जवाब|उत्तर|bol(?:o|iye)?|baat)"
+            telugu_request = language + r"\s*(?:లో|lo)\s*(?:మాట్లాడు|మాట్లాడండి|చెప్పండి|matladu|matladandi)"
+            if re.search(english_request, text) or re.search(hindi_request, text) or re.search(telugu_request, text):
+                return code
+    return None
 
 
 class TurnLanguage:
     def __init__(self):
         self.pending = None
         self.current = None
+        self.preferred = None
         self.pending_text = None
 
     def on_transcript(self, event):
@@ -46,7 +53,10 @@ class TurnLanguage:
     def complete_turn(self, text):
         text = text or ''
         detected = self.pending if self.pending_text and self.pending_text in text else None
-        self.current = requested_language(text) or detected
+        requested = requested_language(text)
+        if requested:
+            self.preferred = requested
+        self.current = self.preferred or detected
         self.pending = None
         self.pending_text = None
         return self.current

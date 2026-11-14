@@ -180,9 +180,9 @@ Weather can take up to 20 s and places up to 12 s. The crop database query has n
 ## TODO
 
 ### P0: multilingual correctness
-- [ ] Tighten `requested_language`: require verb + language name together, exclude place and crop names, add regression tests (2.1)
-- [ ] Keep an explicit language preference across turns in `TurnLanguage` (2.2)
-- [ ] Fix TTS script routing: add Devanagari, apply to all sessions, remove the dead `mr-IN` branch (2.3)
+- [x] Tighten `requested_language`: require verb + language name together, exclude place and crop names, add regression tests (2.1)
+- [x] Keep an explicit language preference across turns in `TurnLanguage` (2.2)
+- [x] Fix TTS script routing: add Devanagari, apply to all sessions, remove the dead `mr-IN` branch (2.3)
 - [ ] Tool docstrings: require English/Latin-script arguments with the state; add a native-script retry hint (1.1)
 - [ ] Rewrite crop search: OR-based ranking, crop synonyms, English keyword arguments (1.3)
 
@@ -197,7 +197,7 @@ Weather can take up to 20 s and places up to 12 s. The crop database query has n
 - [ ] Add `source_name` to crop knowledge and stop reading URLs aloud (1.4)
 - [ ] Make the dosage rule explicit (1.5)
 - [ ] Finish or remove guest mode (4.1)
-- [ ] Require auth (and rate limits) on `/speech/*`, or remove those routes (4.3)
+- [x] Require auth on `/speech/*` and add a per-user, per-process rate limit (4.3). A shared limiter is still needed to enforce a global limit across replicas.
 
 ### P2: cleanup and polish
 - [ ] Speak a localized acknowledgement during slow tools; add a timeout to the crop DB query (3.5)

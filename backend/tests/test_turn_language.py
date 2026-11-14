@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from livekit.agents.llm import ChatContext
 from app.services.prisma_stt import PrismaSTT
 from app.services.realtime_speech import ConversationTTS
-from app.services.turn_language import TurnLanguage
+from app.services.turn_language import TurnLanguage, requested_language
 from voiceagent.worker import FarmingAgent
 
 
@@ -54,6 +54,23 @@ class TurnLanguageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stream._language, 'en-IN')
         await stream.aclose()
         await provider.aclose()
+
+    async def test_language_mentions_are_not_switch_requests(self):
+        for text in ('My farm is in Tamil Nadu', 'tell me about bengali gram pests',
+                     'I grow rice in Punjab and speak punjabi sometimes'):
+            with self.subTest(text=text):
+                self.assertIsNone(requested_language(text))
+
+    async def test_explicit_preference_persists_and_can_be_changed(self):
+        state = TurnLanguage()
+        self.assertEqual(state.complete_turn('please speak in Telugu'), 'te-IN')
+        state.on_transcript(Mock(is_final=True, transcript='hello', language='en-IN'))
+        self.assertEqual(state.complete_turn('hello'), 'te-IN')
+        self.assertEqual(state.complete_turn('nothing detected'), 'te-IN')
+        self.assertEqual(state.complete_turn('please reply in English'), 'en-IN')
+        self.assertEqual(state.complete_turn('another turn'), 'en-IN')
+        self.assertEqual(requested_language('हिंदी में बोलो'), 'hi-IN')
+        self.assertEqual(requested_language('తెలుగు లో మాట్లాడు'), 'te-IN')
 
     async def test_missing_and_stale_transcripts_do_not_reuse_language(self):
         state = TurnLanguage()

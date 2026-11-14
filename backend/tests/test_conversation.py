@@ -108,7 +108,7 @@ class StreamingTests(unittest.IsolatedAsyncioTestCase):
         socket = Socket([message(pcm[:101]), message(pcm[101:]), message(b'', True)])
         provider = ConversationTTS(api_key='test-key', voice='Lakshmi', language='te-IN')
         with patch('app.services.realtime_speech.websockets.connect', new=AsyncMock(return_value=socket)):
-            async with provider.synthesize('Hello', conn_options=APIConnectOptions(max_retry=0)) as stream:
+            async with provider.synthesize('నమస్కారం', conn_options=APIConnectOptions(max_retry=0)) as stream:
                 result = await stream.collect()
         self.assertFalse(socket.closed)
         await provider.aclose()

@@ -46,16 +46,19 @@ class ConversationTTS(tts.TTS):
 
     def synthesize(self, text: str, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS):
         language = self.turn_language or self._language
-        for start, end, script_language in SCRIPT_LANGUAGES:
-            if any(start <= char <= end for char in text):
-                language = script_language
-                break
+        if any("\u0900" <= char <= "\u097f" for char in text):
+            # Hindi and Marathi share Devanagari; preserve a matching turn or session.
+            language = language if language in {"hi-IN", "mr-IN"} else "hi-IN"
         else:
-            if language in {"hi-IN", "en-IN"}:
-                if any("\u0900" <= char <= "\u097f" for char in text):
-                    language = "mr-IN" if language == "mr-IN" else "hi-IN"
-                elif not self.turn_language:
-                    language = "en-IN"
+            for start, end, script_language in SCRIPT_LANGUAGES:
+                if any(start <= char <= end for char in text):
+                    language = script_language
+                    break
+            else:
+                # Keep an explicit turn language for romanized speech; otherwise
+                # Latin text is normally English regardless of session default.
+                if any(char.isascii() and char.isalpha() for char in text):
+                    language = self.turn_language or "en-IN"
         return _AudioStream(provider=self, input_text=text, conn_options=conn_options, language=language)
 
     async def _connect(self):

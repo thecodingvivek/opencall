@@ -4,9 +4,10 @@ import wave
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.services.speech_rate_limit import limit_speech_requests
 from app.services.gnani import (
     get_gnani_stt_client, get_gnani_tts_client, recognize, synthesize_audio,
 )
@@ -49,7 +50,7 @@ class SynthesisRequest(BaseModel):
     delivery: Delivery = "neutral"
 
 
-@router.post("/synthesize", response_class=Response, responses={
+@router.post("/synthesize", dependencies=[Depends(limit_speech_requests)], response_class=Response, responses={
     200: {"content": {"audio/wav": {}}, "description": "Synthesized WAV audio"},
 })
 async def synthesize(payload: SynthesisRequest) -> Response:
@@ -88,7 +89,7 @@ class TranscriptionResponse(BaseModel):
     request_id: str
 
 
-@router.post("/transcribe", response_model=TranscriptionResponse)
+@router.post("/transcribe", dependencies=[Depends(limit_speech_requests)], response_model=TranscriptionResponse)
 async def transcribe(
     audio: UploadFile = File(...),
     language_code: Language = Form("en-IN"),

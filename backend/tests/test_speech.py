@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi.testclient import TestClient
 from app.main import app
+from app.api.routes.auth import require_user
+from app.services.speech_rate_limit import _requests, LIMIT
 
 
 def wav_bytes(seconds=1, channels=1, rate=16000):
@@ -20,6 +22,10 @@ def wav_bytes(seconds=1, channels=1, rate=16000):
 class SpeechTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        app.dependency_overrides[require_user] = lambda: {'username': 'test-user'}
+        _requests.clear()
+        self.addCleanup(app.dependency_overrides.clear)
+        self.addCleanup(_requests.clear)
         self.factory_patch = patch('app.api.routes.speech.get_gnani_stt_client')
         self.factory = self.factory_patch.start()
         self.addCleanup(self.factory_patch.stop)
@@ -34,6 +40,23 @@ class SpeechTests(unittest.TestCase):
         return self.client.post('/api/v1/speech/transcribe',
             files={'audio': ('recording.wav', wav_bytes() if audio is None else audio, 'audio/wav')},
             data={'language_code': language})
+
+    def test_signed_out_requests_cannot_use_provider(self):
+        app.dependency_overrides.pop(require_user)
+        response = self.upload()
+        self.assertEqual(response.status_code, 401)
+        self.factory.assert_not_called()
+        self.recognize.assert_not_awaited()
+
+    def test_limit_is_per_user_and_blocks_provider(self):
+        for _ in range(LIMIT):
+            self.assertEqual(self.upload().status_code, 200)
+        response = self.upload()
+        self.assertEqual(response.status_code, 429)
+        self.assertTrue(response.headers.get('retry-after'))
+        self.assertEqual(self.recognize.await_count, LIMIT)
+        app.dependency_overrides[require_user] = lambda: {'username': 'other-user'}
+        self.assertEqual(self.upload().status_code, 200)
 
     def test_transcription_contract(self):
         response = self.upload(language='te-IN')
@@ -90,6 +113,10 @@ class SpeechTests(unittest.TestCase):
 class SynthesisTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
+        app.dependency_overrides[require_user] = lambda: {'username': 'test-user'}
+        _requests.clear()
+        self.addCleanup(app.dependency_overrides.clear)
+        self.addCleanup(_requests.clear)
         self.factory_patch = patch('app.api.routes.speech.get_gnani_tts_client')
         self.factory = self.factory_patch.start()
         self.addCleanup(self.factory_patch.stop)
@@ -103,6 +130,12 @@ class SynthesisTests(unittest.TestCase):
     def synthesize(self, text='Hello world', language='en-IN'):
         return self.client.post('/api/v1/speech/synthesize',
             json={'text': text, 'language_code': language})
+
+    def test_signed_out_synthesis_does_not_call_provider(self):
+        app.dependency_overrides.pop(require_user)
+        self.assertEqual(self.synthesize().status_code, 401)
+        self.factory.assert_not_called()
+        self.synthesis.assert_not_awaited()
 
     def test_wav_response_and_provider_contract(self):
         response = self.synthesize('  Hello world  ')
