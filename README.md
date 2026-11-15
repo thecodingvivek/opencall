@@ -6,14 +6,25 @@ OpenCall is a voice assistant for farming questions. It brings conversation, cro
 
 ![OpenCall conversation dashboard](static/preview.png)
 
-## What OpenCall does
+### Demo video
 
-- **Continuous voice conversation:** the browser joins a LiveKit room and exchanges live audio with a Python agent. The assistant listens for turns and can be interrupted while speaking.
-- **Crop guidance:** the agent searches a curated set of crop-knowledge records stored in PostgreSQL. Records include source URLs; search results are information to discuss, not a confirmed diagnosis.
-- **Weather:** the agent can look up current conditions, forecasts, and historical weather through Open-Meteo, subject to the provider's coverage and the tool's supported time ranges.
-- **Nearby farming services:** when Geoapify is configured, the agent can find relevant shops and agriculture offices. A listing does not establish that a product is in stock.
-- **Requested calls:** the agent can save a farming-related request to the user's task list. Outbound calling and scheduling are not implemented.
-- **Phonebook context:** a short description associated with the account can be edited and used to personalize later conversations. Useful details from a conversation may be merged into it when the session ends.
+[Watch the demo](https://drive.google.com/drive/folders/1JDcqvwNoAuMWAizR7UepiM8HDouNvyTn?usp=sharing)
+
+## Features
+
+**A conversation that keeps up.** Start talking and keep going. OpenCall listens for natural pauses, streams its replies, and lets you interrupt when another question comes to mind. There is no need to record and submit every turn.
+
+**Your language, your voice.** Choose a supported language and voice for the conversation. The assistant is designed to listen and respond in the caller's language, making it easier to ask a question in words that feel natural.
+
+**A closer look at crop concerns.** Ask about a symptom or a farming question and the agent can search curated crop records with source links. The results provide information for a conversation, not a confirmed diagnosis.
+
+**Weather with a sense of time.** Ask what conditions are like now, what the forecast says, or what the weather was like in the past. OpenCall looks up the requested place and period through Open-Meteo, within the available data and supported time ranges.
+
+**Local help within reach.** Looking for a farming shop or an agriculture office? When Geoapify is configured, OpenCall can search for nearby places and share available listing details. Listings do not confirm product availability or stock.
+
+**Context that carries forward.** The phonebook stores a short, editable account description. With useful context available in a later session, a conversation can pick up with a little more understanding of the person asking.
+
+**A place for the next step.** If a farming question calls for contacting someone, the agent can save the request to the user's task list. Outbound calls and scheduling are not yet available.
 
 ## How it works
 
@@ -189,3 +200,7 @@ The frontend and FastAPI API are hosted separately from the LiveKit voice worker
 The GitHub Actions workflow in `.github/workflows/deploy-livekit.yml` runs backend tests and deploys the worker for relevant pushes to `main`; it can also run manually on `main`. It requires GitHub Actions secrets `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`. Provider and database credentials remain configured on the LiveKit agent. The workflow verifies the deployed commit and a running replica, but a real authenticated browser call is still needed to validate audio and integrations. Frontend-only changes and documentation do not trigger a worker deployment.
 
 See the [voice agent deployment guide](voiceagent/README.md) for manual deployment, worker secrets, and certificate setup. Verify the frontend, API, and worker independently after release; revert a bad change on `main` to deploy a rollback through the workflow.
+
+---
+
+Built as part of the Gnani AI Hackathon.
