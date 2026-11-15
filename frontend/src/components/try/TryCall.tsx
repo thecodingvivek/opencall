@@ -16,6 +16,13 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 type Status = "idle" | "connecting" | "active";
 
+// Failures worth one automatic retry: network blips, server errors, cold starts.
+class RetryableError extends Error {}
+
+const WAKING = "The assistant is waking up…";
+const RECONNECTING = "Having trouble connecting. Trying again…";
+const CALL_STATUS_TOPIC = "call_status";
+
 function AgentAudio({ onSpeaking, onTrack }: { onSpeaking: () => void; onTrack: (track: MediaStreamTrack | null) => void }) {
   const { state, audioTrack } = useVoiceAssistant();
   const track = audioTrack?.publication.track?.mediaStreamTrack ?? null;
@@ -36,6 +43,7 @@ export function TryCall() {
     return tracks.length ? new MediaStream(tracks) : null;
   }, [audioStream, agentTrack]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [phonebook, setPhonebook] = useState<PhonebookState>({ status: "loading" });
@@ -44,9 +52,17 @@ export function TryCall() {
   const generation = useRef(0);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endReason = useRef<string | null>(null);
   const refreshTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const refreshGeneration = useRef(0);
-  const onSpeaking = useCallback(() => { if (timer.current) clearTimeout(timer.current); setStatus("active"); }, []);
+  const onSpeaking = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (wakeTimer.current) clearTimeout(wakeTimer.current);
+    setNotice(current => current === WAKING || current === RECONNECTING ? "" : current);
+    setStatus("active");
+  }, []);
 
   const refreshPhonebook = useCallback(async (version: number) => {
       try {
@@ -81,6 +97,8 @@ export function TryCall() {
     generation.current++;
     request.current?.abort();
     if (timer.current) clearTimeout(timer.current);
+    if (wakeTimer.current) clearTimeout(wakeTimer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     const previous = active.current;
     active.current = null;
     busy.current = false;
@@ -115,10 +133,35 @@ export function TryCall() {
     generation.current++;
     request.current?.abort();
     if (timer.current) clearTimeout(timer.current);
+    if (wakeTimer.current) clearTimeout(wakeTimer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     void active.current?.disconnect();
   }, []);
 
-  async function start() {
+  function hangUp() {
+    end();
+    setNotice("");
+  }
+
+  // Explain why the agent left, using the reason it sent just before hanging up.
+  function agentEnded(fallback: string) {
+    const reason = endReason.current;
+    end();
+    if (reason === "time_limit") setNotice("This call reached its time limit. You can call again.");
+    else if (reason === "provider_error") setError("The assistant ran into a technical problem and ended the call. Please call again.");
+    else setError(fallback);
+  }
+
+  function retry(attempt: number) {
+    if (generation.current !== attempt) return;
+    end();
+    setStatus("connecting");
+    setNotice(RECONNECTING);
+    busy.current = true;
+    retryTimer.current = setTimeout(() => { busy.current = false; void start(false); }, 1500);
+  }
+
+  async function start(canRetry = true) {
     if (busy.current || active.current) return;
     refreshTimers.current.forEach(clearTimeout);
     refreshTimers.current = [];
@@ -127,39 +170,67 @@ export function TryCall() {
     const attempt = ++generation.current;
     const controller = new AbortController();
     request.current = controller;
+    endReason.current = null;
     setError("");
+    if (canRetry) setNotice("");
     setStatus("connecting");
+    // Free-plan agents can take 10–20 s to start after being idle.
+    wakeTimer.current = setTimeout(() => {
+      if (generation.current === attempt) setNotice(current => current || WAKING);
+    }, 10000);
     timer.current = setTimeout(() => {
       if (generation.current !== attempt) return;
+      if (canRetry) { retry(attempt); return; }
       end();
-      setError("The agent did not respond. Please try again.");
-    }, 45000);
+      setNotice("");
+      setError("The assistant did not answer. Please try again in a minute.");
+    }, 30000);
     let next: Room | null = null;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone access requires localhost or HTTPS.");
       if (phonebook.status !== "ready") throw new Error("Phonebook is unavailable. Please try again.");
-      const response = await fetch("/api/conversation/connect", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language_code: "en-IN", voice }), signal: controller.signal,
-      });
-      const details = await response.json();
-      if (!response.ok) throw new Error(typeof details.detail === "string" ? details.detail : "Could not start the call.");
+      let response: Response;
+      try {
+        response = await fetch("/api/conversation/connect", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ language_code: "en-IN", voice }), signal: controller.signal,
+        });
+      } catch (cause) {
+        if (cause instanceof Error && cause.name === "AbortError") throw cause;
+        throw new RetryableError("Could not reach OpenCall. Check your internet connection and try again.");
+      }
+      const details = await response.json().catch(() => ({}));
+      const detail = typeof details.detail === "string" ? details.detail : "Could not start the call.";
+      if (response.status >= 500) throw new RetryableError(detail);
+      if (!response.ok) throw new Error(detail);
       if (typeof details.server_url !== "string" || typeof details.participant_token !== "string") throw new Error("Invalid connection details.");
       if (generation.current !== attempt) return;
       next = new Room({ adaptiveStream: true, audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       active.current = next;
       const currentRoom = next;
+      next.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+        if (topic !== CALL_STATUS_TOPIC || !participant?.isAgent || payload.length > 1024 || active.current !== currentRoom) return;
+        try {
+          const event = JSON.parse(new TextDecoder().decode(payload));
+          if (event.type === "call_ending" && typeof event.reason === "string") endReason.current = event.reason;
+          else if (event.type === "time_warning" && typeof event.seconds_left === "number") {
+            setNotice(`About ${Math.round(event.seconds_left)} seconds left in this call.`);
+          }
+        } catch { /* Ignore malformed status messages. */ }
+      });
       next.on(RoomEvent.Disconnected, () => {
         if (active.current !== currentRoom) return;
-        end();
-        setError("The call disconnected. Please try again.");
+        agentEnded("The call disconnected. Please try again.");
       });
       next.on(RoomEvent.ParticipantDisconnected, participant => {
         if (!participant.isAgent || active.current !== currentRoom) return;
-        end();
-        setError("The agent disconnected. Please try again.");
+        agentEnded("The agent disconnected. Please try again.");
       });
-      await next.connect(details.server_url, details.participant_token);
+      try {
+        await next.connect(details.server_url, details.participant_token);
+      } catch {
+        throw new RetryableError("Could not connect the call. Please try again.");
+      }
       if (generation.current !== attempt) { await next.disconnect(); return; }
       await next.localParticipant.setMicrophoneEnabled(true);
       if (generation.current !== attempt) { await next.disconnect(); return; }
@@ -172,7 +243,9 @@ export function TryCall() {
       if (active.current === next) active.current = null;
       try { await next?.disconnect(); } catch { console.warn("Could not cleanly disconnect the call."); }
       if (generation.current === attempt) {
+        if (canRetry && cause instanceof RetryableError) { retry(attempt); return; }
         end();
+        setNotice("");
         setError(cause instanceof Error && cause.name === "NotAllowedError" ? "Allow microphone and audio access to start the call." : cause instanceof Error ? cause.message : "Could not start the call.");
       }
     } finally {
@@ -223,11 +296,12 @@ export function TryCall() {
             animate={{ y: 0, opacity: 1 }}
             exit={reducedMotion ? { opacity: 0 } : { y: 100, opacity: 0 }}
             transition={reducedMotion ? { duration: 0 } : { duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
-          <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : status === "active" ? "call-ending" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? end : start}>
-            {status === "connecting" ? <>Connecting <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></> : status === "active" ? <><PhoneOff aria-hidden="true" /> End call</> : <><Phone aria-hidden="true" /> Call agent</>}
+          <Button type="button" className={`home-pill call-pill ${status === "connecting" ? "call-connecting" : status === "active" ? "call-ending" : ""}`} disabled={status === "connecting"} onClick={status === "active" ? hangUp : () => { void start(); }}>
+            {status === "connecting" ? <>Connecting <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span></> : status === "active" ? <><PhoneOff aria-hidden="true" /> End call</> : <><Phone aria-hidden="true" /> {error || notice ? "Call again" : "Call agent"}</>}
           </Button>
           </motion.div>
           </AnimatePresence>
+          {notice && !error && <p role="status" aria-live="polite" className="w-64 text-center text-sm text-[#777]">{notice}</p>}
           {error && <p role="alert" className="w-64 text-center text-sm text-red-700">{error}</p>}
         </div>
       </section>

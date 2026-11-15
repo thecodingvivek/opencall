@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     groq_api_key: SecretStr | None = None
     geoapify_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
+    # Used for a reply when groq_model errors or is slow; empty disables the backup.
+    groq_fallback_model: str = "openai/gpt-oss-120b"
     groq_summary_model: str = "qwen/qwen3.8-27b"
     livekit_url: str = "ws://127.0.0.1:7880"
     livekit_api_key: str = "devkey"

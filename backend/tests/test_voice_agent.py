@@ -76,7 +76,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         session.start = AsyncMock(side_effect=start)
         settings = Mock(gnani_api_key=SecretStr('test-gnani'),
                         groq_api_key=SecretStr('test-groq'), groq_model='openai/gpt-oss-20b',
-                        conversation_max_seconds=1800)
+                        groq_fallback_model='openai/gpt-oss-120b', conversation_max_seconds=1800)
         with patch.object(voice_agent, 'settings', settings), \
              patch.object(voice_agent, 'AgentSession', return_value=session) as factory, \
              patch.object(voice_agent, 'get_phonebook_store', return_value=store), \
@@ -99,17 +99,21 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                 await callback()
             update.assert_awaited_once_with(store, 'demo', ['I teach science.', 'I prefer short replies.'])
         config = factory.call_args.kwargs
+        self.assertIsInstance(config['llm'], voice_agent.FallbackAdapter)
+        self.assertEqual([instance.model for instance in config['llm']._llm_instances],
+                         ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'])
+        primary_llm = config['llm']._llm_instances[0]
         schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
-            'openai', strict=config['llm']._strict_tool_schema)[0]
+            'openai', strict=primary_llm._strict_tool_schema)[0]
         self.assertEqual(schema['function']['parameters']['required'], ['location'])
         task_schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
-            'openai', strict=config['llm']._strict_tool_schema)[1]
+            'openai', strict=primary_llm._strict_tool_schema)[1]
         self.assertEqual(task_schema['function']['name'], 'update_farming_task')
         self.assertEqual(set(task_schema['function']['parameters']['required']), {'task_id', 'title', 'status'})
         self.assertEqual(ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
-            'openai', strict=config['llm']._strict_tool_schema)[2]['function']['name'], 'search_crop_knowledge')
+            'openai', strict=primary_llm._strict_tool_schema)[2]['function']['name'], 'search_crop_knowledge')
         places_schema = ToolContext(voice_agent.AGENT_TOOLS).parse_function_tools(
-            'openai', strict=config['llm']._strict_tool_schema)[3]
+            'openai', strict=primary_llm._strict_tool_schema)[3]
         self.assertEqual(places_schema['function']['name'], 'search_farming_places')
         self.assertEqual(set(places_schema['function']['parameters']['required']), {'location', 'kind'})
         self.assertTrue(config['stt'].capabilities.streaming)
@@ -120,3 +124,115 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         ctx.wait_for_participant.assert_awaited_once_with(identity='user-test')
         session.generate_reply.assert_called_once()
         await config['llm'].aclose()
+
+
+class FallbackTests(unittest.IsolatedAsyncioTestCase):
+    async def run_call(self, *, max_seconds=1000, fallback_model='openai/gpt-oss-120b'):
+        """Start a mocked call and return its handlers, session, context and shutdown callbacks."""
+        callbacks = []
+        ctx = Mock()
+        ctx.job.metadata = json.dumps({'language_code': 'te-IN', 'voice': 'Lakshmi',
+                                      'participant_identity': 'user-test', 'username': 'demo'})
+        ctx.add_shutdown_callback.side_effect = callbacks.append
+        ctx.connect = AsyncMock()
+        ctx.wait_for_participant = AsyncMock()
+        ctx.room.local_participant.publish_data = AsyncMock()
+        session = Mock()
+        session.history = ChatContext()
+        session.start = AsyncMock()
+        session.aclose = AsyncMock()
+        session.interrupt = AsyncMock()
+        session.say.return_value = Mock(wait_for_playout=AsyncMock())
+        handlers = {}
+        session.on.side_effect = lambda event: lambda handler: handlers.setdefault(event, handler)
+        store = Mock()
+        store.get.return_value = PhonebookEntry(username='demo')
+        settings = Mock(gnani_api_key=SecretStr('test-gnani'), groq_api_key=SecretStr('test-groq'),
+                        groq_model='openai/gpt-oss-20b', groq_fallback_model=fallback_model,
+                        conversation_max_seconds=max_seconds)
+        patches = [patch.object(voice_agent, 'settings', settings),
+                   patch.object(voice_agent, 'AgentSession', return_value=session),
+                   patch.object(voice_agent, 'get_phonebook_store', return_value=store),
+                   patch.object(voice_agent, 'update_description_after_session', new=AsyncMock()),
+                   patch.object(voice_agent.silero.VAD, 'load', return_value=Mock())]
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+        await voice_agent.conversation(ctx)
+        self.addAsyncCleanup(self.run_callbacks, callbacks)
+        return handlers, session, ctx
+
+    async def run_callbacks(self, callbacks):
+        for callback in callbacks:
+            await callback()
+
+    @staticmethod
+    def spoken(session):
+        return [call.args[0] for call in session.say.call_args_list]
+
+    @staticmethod
+    def statuses(ctx):
+        return [json.loads(call.args[0]) for call in ctx.room.local_participant.publish_data.call_args_list
+                if call.kwargs.get('topic') == voice_agent.CALL_STATUS_TOPIC]
+
+    @staticmethod
+    def error(kind, recoverable=False):
+        return Mock(error=Mock(recoverable=recoverable, type=kind, error=RuntimeError('provider down')))
+
+    async def settle(self):
+        for _ in range(5):
+            await voice_agent.asyncio.sleep(0)
+
+    async def test_failed_reply_asks_to_repeat_then_ends_politely(self):
+        handlers, session, ctx = await self.run_call()
+        handlers['error'](self.error('llm_error', recoverable=True))
+        await self.settle()
+        session.say.assert_not_called()
+        handlers['error'](self.error('llm_error'))
+        await self.settle()
+        self.assertEqual(self.spoken(session), [voice_agent.call_message('repeat', 'te-IN')])
+        ctx.shutdown.assert_not_called()
+        handlers['error'](self.error('llm_error'))
+        await self.settle()
+        self.assertEqual(self.spoken(session)[-1], voice_agent.call_message('trouble', 'te-IN'))
+        self.assertEqual(self.statuses(ctx), [{'type': 'call_ending', 'reason': 'provider_error'}])
+        session.shutdown.assert_called_once()
+        ctx.shutdown.assert_called_once_with(reason='conversation provider error')
+
+    async def test_successful_reply_resets_failure_count(self):
+        handlers, session, ctx = await self.run_call()
+        handlers['error'](self.error('llm_error'))
+        await self.settle()
+        usage = voice_agent.metrics.LLMMetrics.model_construct(
+            prompt_tokens=1, completion_tokens=1, total_tokens=2, prompt_cached_tokens=0,
+            reasoning_tokens=0, metadata=None)
+        handlers['metrics_collected'](Mock(metrics=usage))
+        handlers['error'](self.error('llm_error'))
+        await self.settle()
+        self.assertEqual(self.spoken(session), [voice_agent.call_message('repeat', 'te-IN')] * 2)
+        ctx.shutdown.assert_not_called()
+
+    async def test_broken_speech_output_only_informs_the_screen(self):
+        handlers, session, ctx = await self.run_call()
+        handlers['error'](self.error('tts_error'))
+        await self.settle()
+        session.say.assert_not_called()
+        self.assertEqual(self.statuses(ctx), [{'type': 'call_ending', 'reason': 'provider_error'}])
+        ctx.shutdown.assert_called_once()
+
+    async def test_time_limit_warns_then_says_goodbye(self):
+        with patch.object(voice_agent, 'TIME_WARNING_SECONDS', 0.05):
+            handlers, session, ctx = await self.run_call(max_seconds=0.15)
+            await voice_agent.asyncio.sleep(0.3)
+        self.assertEqual(self.spoken(session), [voice_agent.call_message('time_warning', 'te-IN'),
+                                                voice_agent.call_message('time_goodbye', 'te-IN')])
+        self.assertEqual(self.statuses(ctx), [{'type': 'time_warning', 'seconds_left': 0.05},
+                                              {'type': 'call_ending', 'reason': 'time_limit'}])
+        session.interrupt.assert_awaited_once_with(force=True)
+        ctx.shutdown.assert_called_once_with(reason='conversation time limit')
+
+    async def test_backup_model_can_be_disabled(self):
+        await self.run_call(fallback_model='')
+        config = voice_agent.AgentSession.call_args.kwargs
+        self.assertNotIsInstance(config['llm'], voice_agent.FallbackAdapter)
+        self.assertEqual(config['llm'].model, 'openai/gpt-oss-20b')

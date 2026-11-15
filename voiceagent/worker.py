@@ -6,9 +6,10 @@ from datetime import datetime, timezone
 
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli, metrics, room_io
 from livekit.plugins import openai, silero
-from livekit.agents.llm import ChatContext, ChatMessage
+from livekit.agents.llm import ChatContext, ChatMessage, FallbackAdapter
 
 from app.core.config import get_settings
+from app.services.call_messages import MessageKey, call_message
 from app.services.conversation import AGENT_NAME, ConversationOptions
 from app.services.phonebook import PhonebookEntry, get_phonebook_store, update_description_after_session
 from app.services.realtime_speech import ConversationTTS
@@ -36,6 +37,28 @@ server = AgentServer(
     shutdown_process_timeout=30,
     host="0.0.0.0", port=settings.voice_worker_port,
 )
+# The frontend listens on this topic to explain why a call ended.
+CALL_STATUS_TOPIC = "call_status"
+TIME_WARNING_SECONDS = 30
+# Consecutive failed LLM replies before the agent apologises and ends the call.
+MAX_FAILED_REPLIES = 2
+
+
+def voice_llm():
+    """Groq LLM, wrapped with a backup Groq model when one is configured."""
+    def groq(model: str):
+        return openai.LLM(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=settings.groq_api_key.get_secret_value(), model=model,
+            max_completion_tokens=512,
+            # Groq must retain optional tool arguments rather than requiring every field.
+            _strict_tool_schema=False,
+        )
+    backup = (settings.groq_fallback_model or "").strip()
+    if not backup or backup == settings.groq_model:
+        return groq(settings.groq_model)
+    # Switch to the backup when the primary errors or takes over 5 s to respond.
+    return FallbackAdapter([groq(settings.groq_model), groq(backup)], attempt_timeout=5.0)
 
 
 class FarmingAgent(Agent):
@@ -103,13 +126,7 @@ async def conversation(ctx: JobContext):
     language_state = TurnLanguage()
     session = AgentSession(
         stt=stt,
-        llm=openai.LLM(
-            base_url="https://api.groq.com/openai/v1",
-            api_key=settings.groq_api_key.get_secret_value(), model=settings.groq_model,
-            max_completion_tokens=512,
-            # Groq must retain optional tool arguments rather than requiring every field.
-            _strict_tool_schema=False,
-        ),
+        llm=voice_llm(),
         tts=tts,
         vad=silero.VAD.load(min_silence_duration=0.35),
         turn_handling={
@@ -120,13 +137,59 @@ async def conversation(ctx: JobContext):
         },
     )
 
+    failed_replies = 0
+    ending = False
+    background: set[asyncio.Task] = set()
+
+    def spawn(coroutine) -> None:
+        task = asyncio.create_task(coroutine)
+        background.add(task)
+        task.add_done_callback(background.discard)
+
+    def reply_language():
+        return language_state.current or ("hi-IN" if bilingual else options.language_code)
+
+    async def publish_call_status(data: dict) -> None:
+        try:
+            await ctx.room.local_participant.publish_data(
+                json.dumps(data).encode(), reliable=True, topic=CALL_STATUS_TOPIC,
+                destination_identities=[identity])
+        except Exception:
+            logging.getLogger(__name__).warning("Could not publish call status", exc_info=True)
+
+    async def say_fixed(key: MessageKey, *, interrupt: bool = False, timeout: float = 12) -> None:
+        """Speak a fixed line without the LLM; never raises."""
+        try:
+            if interrupt:
+                await asyncio.wait_for(session.interrupt(force=True), timeout=3)
+            handle = session.say(call_message(key, reply_language()),
+                                 allow_interruptions=False, add_to_chat_ctx=False)
+            await asyncio.wait_for(handle.wait_for_playout(), timeout=timeout)
+        except Exception as error:
+            logging.getLogger(__name__).warning("Could not speak %s message: %s", key, type(error).__name__)
+
+    async def end_call(reason: str, message: MessageKey | None) -> None:
+        """Tell the screen why, say goodbye if speech still works, then hang up."""
+        nonlocal ending
+        if ending:
+            return
+        ending = True
+        await publish_call_status({"type": "call_ending", "reason": reason})
+        if message:
+            await say_fixed(message, interrupt=True)
+        session.shutdown()
+        ctx.shutdown(reason=f"conversation {reason.replace('_', ' ')}")
+
     @session.on("metrics_collected")
     def on_metrics_collected(event):
+        nonlocal failed_replies
         usage = event.metrics
         if isinstance(usage, metrics.LLMMetrics):
+            failed_replies = 0
+            model = usage.metadata.model_name if usage.metadata and usage.metadata.model_name else settings.groq_model
             logging.getLogger(__name__).info(
                 "Groq usage task=voice model=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s cached_tokens=%s reasoning_tokens=%s",
-                settings.groq_model, usage.prompt_tokens, usage.completion_tokens, usage.total_tokens,
+                model, usage.prompt_tokens, usage.completion_tokens, usage.total_tokens,
                 usage.prompt_cached_tokens, usage.reasoning_tokens,
             )
 
@@ -158,15 +221,40 @@ async def conversation(ctx: JobContext):
 
     @session.on("error")
     def on_error(event):
-        if not event.error.recoverable:
-            logging.getLogger(__name__).error("Conversation provider failed; ending session: %s", type(event.error).__name__)
-            session.shutdown()
-            ctx.shutdown(reason="conversation provider failed")
+        nonlocal failed_replies
+        error = event.error
+        if error.recoverable or ending:
+            return
+        kind = getattr(error, "type", "")
+        logging.getLogger(__name__).error("Conversation provider failed (%s): %s",
+                                          kind or "unknown", type(getattr(error, "error", error)).__name__)
+        if kind == "llm_error":
+            # Both Groq models failed for this reply. Ask the caller to repeat;
+            # end the call only if replies keep failing.
+            failed_replies += 1
+            if failed_replies < MAX_FAILED_REPLIES:
+                spawn(say_fixed("repeat"))
+            else:
+                spawn(end_call("provider_error", "trouble"))
+        elif kind == "tts_error":
+            # Speech output is broken, so only the screen can explain.
+            spawn(end_call("provider_error", None))
+        else:
+            # Speech recognition failed: the agent can still apologise but cannot hear.
+            spawn(end_call("provider_error", "trouble"))
 
     async def limit_duration():
-        await asyncio.sleep(settings.conversation_max_seconds)
-        session.shutdown()
-        ctx.shutdown(reason="conversation duration limit")
+        total = settings.conversation_max_seconds
+        warn_after = total - TIME_WARNING_SECONDS
+        if warn_after > TIME_WARNING_SECONDS:
+            await asyncio.sleep(warn_after)
+            if not ending:
+                await publish_call_status({"type": "time_warning", "seconds_left": TIME_WARNING_SECONDS})
+                spawn(say_fixed("time_warning"))
+            await asyncio.sleep(TIME_WARNING_SECONDS)
+        else:
+            await asyncio.sleep(total)
+        await end_call("time_limit", "time_goodbye")
 
     limit = asyncio.create_task(limit_duration())
 
