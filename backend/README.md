@@ -302,7 +302,7 @@ transcripts, call records, and separate summaries are not stored. The phonebook
 API also supports explicit edits.
 A connection failure, permission denial, missing worker, or lost connection is
 shown in the UI. Leaving the page disconnects and releases the microphone.
-Sessions end after `CONVERSATION_MAX_SECONDS` (default 30 minutes).
+Sessions end after `CONVERSATION_MAX_SECONDS` (default 3 minutes).
 
 ### Configuration and connection contract
 

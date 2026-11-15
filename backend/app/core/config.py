@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     livekit_url: str = "ws://127.0.0.1:7880"
     livekit_api_key: str = "devkey"
     livekit_api_secret: SecretStr = SecretStr("secret")
-    conversation_max_seconds: int = 1800
+    conversation_max_seconds: int = 180
     voice_worker_port: int = 8081
     voice_agent_remote: bool = False
     cors_origins: list[str] = [
