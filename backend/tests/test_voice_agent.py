@@ -11,6 +11,18 @@ from voiceagent import worker as voice_agent
 
 
 class WorkerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_fallback_key_is_tried_before_fallback_model(self):
+        settings = Mock(groq_api_key=SecretStr('primary'), groq_fallback_api_key=SecretStr('backup'),
+                        groq_model='model-one', groq_fallback_model='model-two')
+        with patch.object(voice_agent, 'settings', settings), \
+             patch.object(voice_agent.openai, 'LLM', side_effect=lambda **kwargs: kwargs) as factory, \
+             patch.object(voice_agent, 'FallbackAdapter', side_effect=lambda providers, **kwargs: providers):
+            providers = voice_agent.voice_llm()
+        self.assertEqual([(item['model'], item['api_key']) for item in providers],
+                         [('model-one', 'primary'), ('model-one', 'backup'),
+                          ('model-two', 'primary'), ('model-two', 'backup')])
+        self.assertEqual(factory.call_count, 4)
+
     async def test_fixed_and_personalized_greetings(self):
         session = Mock()
         voice_agent.start_greeting(session, bilingual=True, description='')
@@ -75,7 +87,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
 
         session.start = AsyncMock(side_effect=start)
         settings = Mock(gnani_api_key=SecretStr('test-gnani'),
-                        groq_api_key=SecretStr('test-groq'), groq_model='openai/gpt-oss-20b',
+                        groq_api_key=SecretStr('test-groq'), groq_fallback_api_key=None, groq_model='openai/gpt-oss-20b',
                         groq_fallback_model='openai/gpt-oss-120b', conversation_max_seconds=1800)
         with patch.object(voice_agent, 'settings', settings), \
              patch.object(voice_agent, 'AgentSession', return_value=session) as factory, \
@@ -147,7 +159,7 @@ class FallbackTests(unittest.IsolatedAsyncioTestCase):
         session.on.side_effect = lambda event: lambda handler: handlers.setdefault(event, handler)
         store = Mock()
         store.get.return_value = PhonebookEntry(username='demo')
-        settings = Mock(gnani_api_key=SecretStr('test-gnani'), groq_api_key=SecretStr('test-groq'),
+        settings = Mock(gnani_api_key=SecretStr('test-gnani'), groq_api_key=SecretStr('test-groq'), groq_fallback_api_key=None,
                         groq_model='openai/gpt-oss-20b', groq_fallback_model=fallback_model,
                         conversation_max_seconds=max_seconds)
         patches = [patch.object(voice_agent, 'settings', settings),

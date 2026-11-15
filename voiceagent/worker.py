@@ -46,19 +46,27 @@ MAX_FAILED_REPLIES = 2
 
 def voice_llm():
     """Groq LLM, wrapped with a backup Groq model when one is configured."""
-    def groq(model: str):
+    def groq(model: str, key: str):
         return openai.LLM(
             base_url="https://api.groq.com/openai/v1",
-            api_key=settings.groq_api_key.get_secret_value(), model=model,
+            api_key=key, model=model,
             max_completion_tokens=512,
             # Groq must retain optional tool arguments rather than requiring every field.
             _strict_tool_schema=False,
         )
+    primary_key = settings.groq_api_key.get_secret_value()
+    secondary = settings.groq_fallback_api_key
+    keys = [primary_key]
+    if secondary and secondary.get_secret_value() != primary_key:
+        keys.append(secondary.get_secret_value())
+    models = [settings.groq_model]
     backup = (settings.groq_fallback_model or "").strip()
-    if not backup or backup == settings.groq_model:
-        return groq(settings.groq_model)
-    # Switch to the backup when the primary errors or takes over 5 s to respond.
-    return FallbackAdapter([groq(settings.groq_model), groq(backup)], attempt_timeout=5.0)
+    if backup and backup != settings.groq_model:
+        models.append(backup)
+    providers = [groq(model, key) for model in models for key in keys]
+    if len(providers) == 1:
+        return providers[0]
+    return FallbackAdapter(providers, attempt_timeout=5.0)
 
 
 class FarmingAgent(Agent):

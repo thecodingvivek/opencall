@@ -24,7 +24,7 @@ def main():
             raise SystemExit(f"Missing {key} in voiceagent/.env")
         env[key] = cloud[key]
     secrets = {key: cloud.get(key) or backend.get(key) for key in (
-        "GNANI_API_KEY", "GROQ_API_KEY", "GEOAPIFY_API_KEY", "GROQ_MODEL", "GROQ_FALLBACK_MODEL", "GROQ_SUMMARY_MODEL",
+        "GNANI_API_KEY", "GROQ_API_KEY", "GROQ_FALLBACK_API_KEY", "GEOAPIFY_API_KEY", "GROQ_MODEL", "GROQ_FALLBACK_MODEL", "GROQ_SUMMARY_MODEL",
         "CONVERSATION_MAX_SECONDS")}
     secrets["DATABASE_URL"] = cloud.get("DATABASE_URL") or backend.get("DATABASE_URL") or backend.get("poolurl") or backend.get("URL")
     secrets["DATABASE_SSL_ROOT_CERT"] = "/etc/secrets/prod-ca-2021.crt"
@@ -45,7 +45,7 @@ def main():
         shutil.copy2(root / ".dockerignore", build / ".dockerignore")
         (build / "requirements.txt").write_text("livekit-agents[codecs]==1.8.9\n-r backend/requirements.txt\n")
         config = root / "livekit.toml"
-        if config.is_file():
+        if config.is_file() and (args.update or args.secrets_only):
             shutil.copy2(config, build / "livekit.toml")
         secret_file = Path(temporary) / "worker.env"
         secret_file.touch(mode=0o600)

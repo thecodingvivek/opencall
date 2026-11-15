@@ -89,6 +89,31 @@ class DescriptionUpdateTests(unittest.IsolatedAsyncioTestCase):
 
 
 class SummaryModelTests(unittest.IsolatedAsyncioTestCase):
+    async def test_summary_retries_with_fallback_key(self):
+        import aiohttp
+        from pydantic import SecretStr
+        from app.services.phonebook import generate_description
+
+        failed = MagicMock()
+        failed.__aenter__ = AsyncMock(side_effect=aiohttp.ClientConnectionError('unavailable'))
+        failed.__aexit__ = AsyncMock(return_value=False)
+        response = MagicMock()
+        response.json = AsyncMock(return_value={'choices': [{'finish_reason': 'stop', 'message': {'content': '{"description":"Rice farmer"}'}}]})
+        success = MagicMock()
+        success.__aenter__ = AsyncMock(return_value=response)
+        success.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.post.side_effect = [failed, success]
+        client = MagicMock()
+        client.__aenter__ = AsyncMock(return_value=session)
+        client.__aexit__ = AsyncMock(return_value=False)
+        settings = Mock(groq_api_key=SecretStr('primary'), groq_fallback_api_key=SecretStr('backup'), groq_summary_model='model')
+        with patch('app.services.phonebook.get_settings', return_value=settings), \
+             patch('app.services.phonebook.aiohttp.ClientSession', return_value=client):
+            self.assertEqual(await generate_description('', 'I grow rice'), 'Rice farmer')
+        self.assertEqual([call.kwargs['headers']['Authorization'] for call in session.post.call_args_list],
+                         ['Bearer primary', 'Bearer backup'])
+
     async def test_summary_uses_dedicated_model_and_logs_only_usage(self):
         from pydantic import SecretStr
         from app.services.phonebook import generate_description
@@ -107,7 +132,7 @@ class SummaryModelTests(unittest.IsolatedAsyncioTestCase):
         client = MagicMock()
         client.__aenter__ = AsyncMock(return_value=session)
         client.__aexit__ = AsyncMock(return_value=False)
-        settings = Mock(groq_api_key=SecretStr('test'), groq_model='openai/gpt-oss-20b',
+        settings = Mock(groq_api_key=SecretStr('test'), groq_fallback_api_key=None, groq_model='openai/gpt-oss-20b',
                         groq_summary_model='qwen/qwen3.8-27b')
         with patch('app.services.phonebook.get_settings', return_value=settings), \
              patch('app.services.phonebook.aiohttp.ClientSession', return_value=client), \
@@ -146,7 +171,7 @@ class SummaryModelTests(unittest.IsolatedAsyncioTestCase):
         client = MagicMock()
         client.__aenter__ = AsyncMock(return_value=session)
         client.__aexit__ = AsyncMock(return_value=False)
-        settings = Mock(groq_api_key=SecretStr('test'), groq_summary_model='qwen/qwen3.8-27b')
+        settings = Mock(groq_api_key=SecretStr('test'), groq_fallback_api_key=None, groq_summary_model='qwen/qwen3.8-27b')
         with patch('app.services.phonebook.get_settings', return_value=settings), \
              patch('app.services.phonebook.aiohttp.ClientSession', return_value=client):
             with self.assertRaises(ValueError):

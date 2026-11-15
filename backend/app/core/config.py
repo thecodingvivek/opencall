@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     firebase_service_account_json: SecretStr | None = None
     gnani_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
+    groq_fallback_api_key: SecretStr | None = None
     geoapify_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-20b"
     # Used for a reply when groq_model errors or is slow; empty disables the backup.

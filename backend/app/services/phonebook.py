@@ -85,10 +85,21 @@ async def generate_description(description: str, statements: str) -> str:
     elif settings.groq_summary_model == "qwen/qwen3.8-27b":
         payload["reasoning_effort"] = "none"
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=12)) as client:
-        async with client.post("https://api.groq.com/openai/v1/chat/completions", json=payload,
-            headers={"Authorization": f"Bearer {settings.groq_api_key.get_secret_value()}"}) as response:
-            response.raise_for_status()
-            result = await response.json()
+        keys = [settings.groq_api_key]
+        if settings.groq_fallback_api_key:
+            keys.append(settings.groq_fallback_api_key)
+        for index, key in enumerate(keys):
+            try:
+                async with client.post("https://api.groq.com/openai/v1/chat/completions", json=payload,
+                    headers={"Authorization": f"Bearer {key.get_secret_value()}"}) as response:
+                    response.raise_for_status()
+                    result = await response.json()
+                break
+            except (aiohttp.ClientError, asyncio.TimeoutError) as error:
+                retryable = not isinstance(error, aiohttp.ClientResponseError) or error.status in (401, 403, 429) or error.status >= 500
+                if index == len(keys) - 1 or not retryable:
+                    raise
+                logging.getLogger(__name__).warning("Phonebook summary provider failed; trying fallback key")
     usage = result.get("usage") or {}
     prompt_details = usage.get("prompt_tokens_details") or {}
     completion_details = usage.get("completion_tokens_details") or {}
