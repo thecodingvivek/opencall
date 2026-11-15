@@ -25,7 +25,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} ${instrumentSerif.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <main className="flex min-h-screen flex-col items-center justify-center bg-white px-8 text-center sm:hidden">
+          <p className="text-sm font-medium tracking-[-0.03em]">opencall</p>
+          <h1 className="mt-8 max-w-xs text-4xl tracking-[-0.06em]">A little more room, please.</h1>
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-[#777]">OpenCall is currently available on laptops and larger screens. Please open this page on your laptop to continue.</p>
+        </main>
+        <div className="hidden min-h-screen sm:block">{children}</div>
+      </body>
     </html>
   );
 }

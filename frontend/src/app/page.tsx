@@ -4,12 +4,14 @@ import FooterGradient from "../components/FooterGradient";
 import HomeReveal from "../components/HomeReveal";
 import TextReveal from "../components/TextReveal";
 import GoogleStart from "../components/GoogleStart";
+import { BookUser, CloudSun, Languages, MapPin } from "lucide-react";
 import { instrumentSerif } from "./fonts";
 
-function LiquidPanel({ id, colors, seed, accentX, accentY }: { id: string; colors: [string, string, string]; seed: number; accentX: number; accentY: number }) {
+function LiquidPanel({ id, colors, seed, accentX, accentY, icon: Icon, title, description }: { id: string; colors: [string, string, string]; seed: number; accentX: number; accentY: number; icon: typeof BookUser; title: string; description: string }) {
   return (
-    <div aria-hidden="true" className="orb-panel border-b border-[#1717171a] md:border-b-0 md:border-r last:border-0">
-      <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 500 300">
+    <article className="w-full md:max-w-[300px]">
+    <div className="orb-panel h-56 sm:h-64" style={{ aspectRatio: "auto" }}>
+      <svg aria-hidden="true" className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 500 300">
         <defs>
           <linearGradient id={`${id}-base`} x1="0" y1="0" x2="0.4" y2="1">
             <stop stopColor={colors[0]} /><stop offset="1" stopColor={colors[1]} />
@@ -35,7 +37,17 @@ function LiquidPanel({ id, colors, seed, accentX, accentY }: { id: string; color
         </g>
         <rect width="500" height="300" filter={`url(#${id}-grain)`} opacity=".13" style={{ mixBlendMode: "soft-light" }} />
       </svg>
+      <div aria-hidden="true" className="absolute inset-0 z-10 flex items-center justify-center text-white">
+        <div className="flex h-28 w-28 items-center justify-center rounded-full border border-white/20 bg-black/35 shadow-lg backdrop-blur-md">
+          <Icon size={52} strokeWidth={1.2} />
+        </div>
+      </div>
     </div>
+    <div className="py-5">
+      <h3 className="text-xl tracking-[-0.04em]">{title}</h3>
+      <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#777]">{description}</p>
+    </div>
+    </article>
   );
 }
 
@@ -77,9 +89,19 @@ export default function Home() {
             <span className="block">idea</span>
           </p>
         </div>
-        <div aria-hidden="true" />
+        <div className="flex flex-col justify-center gap-5 p-8 md:p-12 lg:px-20 lg:py-16">
+          <p className="max-w-3xl text-[clamp(1.6rem,2.8vw,2.75rem)] leading-[1.15] tracking-[-0.045em]">Farming questions deserve answers that are easy to find.</p>
+          <p className="max-w-2xl text-base leading-relaxed text-[#666] md:text-lg">From changing weather to crop concerns, useful information is often scattered across different places. OpenCall brings it together in a conversation you can have out loud.</p>
+        </div>
       </section>
-      <div aria-hidden="true" className="h-[200px]" />
+      <div className="w-full bg-white px-8 py-8 md:px-12">
+        <iframe
+          src="/phone-assembly.html"
+          title="Animated exploded view of a phone"
+          loading="lazy"
+          className="mx-auto block aspect-[2048/1071] w-full max-w-[800px] overflow-hidden border-0"
+        />
+      </div>
       <section className="relative z-10 grid min-h-[260px] grid-cols-1 border-y border-[#1717171a] md:grid-cols-[420px_minmax(0,1fr)]" aria-label="The solution">
         <div className="flex w-full flex-col justify-between border-b border-[#1717171a] p-8 md:border-b-0 md:border-r md:p-12">
           <span className="text-xs font-medium uppercase tracking-[0.16em] text-[#17171799]">02</span>
@@ -88,14 +110,27 @@ export default function Home() {
             <span className="block">solution</span>
           </p>
         </div>
-        <div aria-hidden="true" />
+        <div className="p-8 md:p-12 lg:px-20 lg:py-16">
+          <p className="max-w-3xl text-[clamp(1.6rem,2.8vw,2.75rem)] leading-[1.15] tracking-[-0.045em]">An assistant that listens, looks things up, and keeps the conversation going.</p>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#666] md:text-lg">Ask naturally, speak in your preferred language, and interrupt when you have another question. OpenCall can use a short saved description to make future conversations more helpful.</p>
+          <div className="mt-10 grid gap-7 border-t border-[#1717171a] pt-7 sm:grid-cols-3">
+            <div><h3 className="text-sm font-medium">Crop guidance</h3><p className="mt-2 text-sm leading-relaxed text-[#777]">Explore sourced information about crop health and common concerns.</p></div>
+            <div><h3 className="text-sm font-medium">Weather</h3><p className="mt-2 text-sm leading-relaxed text-[#777]">Ask about current conditions, forecasts, and past weather.</p></div>
+            <div><h3 className="text-sm font-medium">Local services</h3><p className="mt-2 text-sm leading-relaxed text-[#777]">Find nearby farming shops and agriculture offices when available.</p></div>
+          </div>
+          <p className="mt-8 max-w-2xl text-sm leading-relaxed text-[#777]">You can also save a request for a farming-related call. Outbound calling is not available yet.</p>
+        </div>
       </section>
       <div aria-hidden="true" className="h-[200px]" />
-      <section className="relative z-10 grid grid-cols-1 border-y border-[#1717171a] md:grid-cols-3" aria-label="Three ways to connect">
-        <LiquidPanel id="lagoon" colors={["#48ddbe", "#1744a0", "#e5ef9d"]} seed={8} accentX={300} accentY={60} />
-        <LiquidPanel id="sunset" colors={["#ffad55", "#c92968", "#f6dbbc"]} seed={23} accentX={70} accentY={210} />
-        <LiquidPanel id="aurora" colors={["#8ee6c5", "#5420ad", "#bdacf5"]} seed={41} accentX={420} accentY={150} />
+      <section className="relative z-10 flex w-full flex-col gap-12 px-8 pb-24 md:flex-row md:justify-between md:gap-8 md:px-12" aria-label="OpenCall features">
+        <LiquidPanel id="lagoon" colors={["#48ddbe", "#1744a0", "#e5ef9d"]} seed={8} accentX={300} accentY={60} icon={BookUser} title="Phonebook" description="Keep a short description to give future conversations helpful context." />
+        <LiquidPanel id="sunset" colors={["#ffad55", "#c92968", "#f6dbbc"]} seed={23} accentX={70} accentY={210} icon={CloudSun} title="Weather" description="Ask about current conditions, forecasts, and past weather." />
+        <LiquidPanel id="aurora" colors={["#8ee6c5", "#5420ad", "#bdacf5"]} seed={41} accentX={420} accentY={150} icon={MapPin} title="Maps" description="Find nearby farming shops and agriculture offices when available." />
+        <LiquidPanel id="language" colors={["#a9d8f5", "#6947b8", "#f5c7da"]} seed={15} accentX={140} accentY={80} icon={Languages} title="Language" description="Speak and receive responses in your preferred supported language." />
       </section>
+      <footer className="px-8 py-8 text-center text-sm text-[#777]">
+        Powered by Gnani and LiveKit
+      </footer>
     </main>
   );
 }
