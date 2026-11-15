@@ -302,7 +302,22 @@ transcripts, call records, and separate summaries are not stored. The phonebook
 API also supports explicit edits.
 A connection failure, permission denial, missing worker, or lost connection is
 shown in the UI. Leaving the page disconnects and releases the microphone.
-Sessions end after `CONVERSATION_MAX_SECONDS` (default 3 minutes).
+Sessions end after `CONVERSATION_MAX_SECONDS` (default 3 minutes). Thirty seconds
+before the end the agent warns the caller, and at the limit it says goodbye before
+hanging up.
+
+When something fails, the call degrades gently instead of dropping:
+
+- If `GROQ_MODEL` errors or takes over 5 s, the reply comes from
+  `GROQ_FALLBACK_MODEL` (default `openai/gpt-oss-120b`; empty disables it).
+- If both models fail, the agent asks the caller to repeat. After two failed
+  replies in a row it apologises and ends the call.
+- If speech recognition fails, the agent apologises and ends the call. If speech
+  output fails, only the screen explains.
+- The agent sends the end reason on the `call_status` data topic, and `/try`
+  shows a matching message with a "Call again" button.
+- The fixed lines are in `app/services/call_messages.py`; have native speakers
+  review them.
 
 ### Configuration and connection contract
 
